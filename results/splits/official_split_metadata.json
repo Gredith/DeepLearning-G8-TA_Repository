@@ -1,0 +1,23 @@
+{
+  "source": "https://raw.githubusercontent.com/ondyari/FaceForensics/master/dataset/splits/<train|val|test>.json",
+  "splits": {
+    "train": {
+      "pairs": 360,
+      "unique_source_ids": 720,
+      "source_json": "results\\splits\\train.json",
+      "sha256": "e59386911255e6fb0a79a7808ec2210536b8c0474268342694c4bca766d1b347"
+    },
+    "val": {
+      "pairs": 70,
+      "unique_source_ids": 140,
+      "source_json": "results\\splits\\val.json",
+      "sha256": "b48cc511f66938e05356aaa9c67e150b1e3638c355db3d745225b0022884b36e"
+    },
+    "test": {
+      "pairs": 70,
+      "unique_source_ids": 140,
+      "source_json": "results\\splits\\test.json",
+      "sha256": "886f5a0da623c25820692e0d8dc33d197ddb1db527a7f1cfcb9bcbca60fe4f40"
+    }
+  }
+}

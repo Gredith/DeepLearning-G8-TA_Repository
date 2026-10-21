@@ -6,6 +6,7 @@ Al crear notebooks de entrenamiento o análisis:
 
 - importa funciones desde `src/` o mantén celdas breves que llamen a esos módulos;
 - permite configurar rutas de Kaggle (`/kaggle/input/` para datos y `/kaggle/working/` para salidas);
+- instala `environment/requirements.txt` (o selecciona las versiones compatibles con la imagen Kaggle activa) antes de importar módulos del proyecto;
 - registra semilla, parámetros y hash del commit;
 - nunca guardes credenciales ni copies el dataset al repositorio.
 

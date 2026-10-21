@@ -26,12 +26,11 @@ datasets/
 # Generated experiment outputs; keep directory documentation tracked
 results/checkpoints/*
 !results/checkpoints/.gitkeep
-results/metrics/*
-!results/metrics/.gitkeep
 results/figures/*
 !results/figures/.gitkeep
-results/splits/*
-!results/splits/.gitkeep
+!results/figures/teardown_flops_by_flow.png
+results/figures/gradcam/
+results/figures/data_sanity_grid.jpg
 
 # OS/editor
 .DS_Store
