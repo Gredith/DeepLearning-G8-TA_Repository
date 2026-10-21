@@ -16,8 +16,8 @@ try:
 except ImportError:  # pragma: no cover
     from build_splits import assert_disjoint_splits
 
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
+XCEPTION_MEAN = (0.5, 0.5, 0.5)
+XCEPTION_STD = (0.5, 0.5, 0.5)
 REQUIRED_FIELDS = {"split", "image_path", "video_id", "source_ids", "label", "manipulation"}
 
 
@@ -33,8 +33,8 @@ class FaceCropDataset(Dataset):
         horizontal_flip: bool = False,
         validate_all_splits: bool = True,
         manipulations: list[str] | None = None,
-        normalization_mean: tuple[float, float, float] = IMAGENET_MEAN,
-        normalization_std: tuple[float, float, float] = IMAGENET_STD,
+        normalization_mean: tuple[float, float, float] = XCEPTION_MEAN,
+        normalization_std: tuple[float, float, float] = XCEPTION_STD,
     ):
         if split not in {"train", "val", "test"}:
             raise ValueError("split must be one of: train, val, test")

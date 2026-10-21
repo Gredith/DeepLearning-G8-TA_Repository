@@ -4,7 +4,7 @@
 **Entrega:** miércoles 21 de octubre de 2026
 **Alcance de este archivo:** solo lo que hay que programar y correr. La redacción del cuaderno de decisiones y la actualización del texto de la propuesta van aparte.
 
-> **Nota sobre el código:** los módulos de T1–T7 y la pérdida/pruebas de T3 ya están implementados. Los splits oficiales están guardados, pero la extracción/recorte y las corridas aún no se han ejecutado en un runtime de PyTorch con FF++. T8/T9 y la fijación de dependencias siguen pendientes. Los nombres de capas de `timm` cambian entre versiones, así que verifíquenlos con `print(model)` antes de usarlos.
+> **Nota sobre el código:** los módulos de T1–T7 y la pérdida/pruebas de T3 están implementados. Los notebooks E2 y `src/kaggle_e2/` cubren el protocolo por subconjunto; el pipeline CLI completo está en `src/data_pipeline/`, `src/train.py`, `src/evaluate*.py` y `src/teardown/`. Consulta `docs/DECISIONS.md` para distinguir los resultados sintéticos/CPU ya generados de las corridas pendientes en GPU con FF++. T8/T9 y el registro de versiones del entorno siguen pendientes.
 
 > **Cómo leer las casillas:** una casilla marcada indica que el código o la documentación correspondiente existe. Las casillas de ejecución y los criterios de aceptación permanecen sin marcar hasta que existan resultados generados con FF++ y un runtime compatible.
 
@@ -113,7 +113,7 @@ Si el tiempo es poco, este es el orden de corte. **P0 es lo mínimo defendible; 
 ### 2.4 Dataset de PyTorch
 - [x] `Dataset` que devuelva `(imagen, etiqueta, video_id, manipulacion)`. El `video_id` es necesario para el AUC a nivel de video.
 - [x] Etiqueta: real = 0, falso = 1.
-- [x] Normalización con media/desviación de ImageNet, configurables.
+- [x] Normalización configurable con media/desviación `[0.5, 0.5, 0.5]`, según `default_cfg` de `legacy_xception` en `timm` (D-02). Esta decisión específica de la arquitectura prevalece sobre el valor inicial de ImageNet indicado en el borrador de E2.
 - [x] Aumentación mínima en entrenamiento (flip horizontal). Cualquier otra, a `docs/DECISIONS.md`.
 
 ### 2.5 Pruebas de sanidad

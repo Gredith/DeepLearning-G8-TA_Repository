@@ -34,6 +34,21 @@ Los resultados del avance E2 se producen con los notebooks de `notebooks/kaggle/
 
 Si 02 y 03 se ejecutan en la misma sesión, 03 encuentra los recortes en `/kaggle/working/crops`. Antes de subir a GitHub un notebook ejecutado, corre `python tools/limpiar_caras.py` (ver Licencias).
 
+### Pipeline CLI completo
+
+Además de los notebooks E2, el repositorio conserva el pipeline modular de `src/` para preparar el conjunto completo y reproducir experimentos desde la línea de comandos. Requiere FF++ c23 obtenido con acceso autorizado y ubicado según `configs/base.yaml`:
+
+```bash
+python src/data_pipeline/build_splits.py --config configs/base.yaml --download-official
+python src/data_pipeline/extract_frames.py --config configs/base.yaml
+python src/data_pipeline/crop_faces.py --config configs/base.yaml
+python src/train.py --config configs/base.yaml --loss bce --run-name xception-bce
+python src/train.py --config configs/base.yaml --loss focal --gamma 2 --run-name xception-focal-g2
+python src/evaluate_cross.py --config configs/base.yaml --checkpoint BCE=results/checkpoints/xception-bce.pt --checkpoint Focal-g2=results/checkpoints/xception-focal-g2.pt
+```
+
+Los análisis de FLOPs/parámetros, campo receptivo y latencia/memoria se ejecutan con `src/teardown/flops_params.py`, `src/teardown/receptive_field.py` y `src/teardown/latency_memory.py`. Los dos flujos comparten el modelo Xception y los splits oficiales; difieren en el subconjunto de datos y protocolo experimental. Los resultados publicados para este E2 corresponden a los notebooks 01–03.
+
 ## Preparar el entorno
 
 Se recomienda Python 3.10 o 3.11 y una instalación de PyTorch compatible con el equipo (CPU o CUDA). Desde la raíz del repositorio:
