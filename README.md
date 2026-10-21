@@ -15,11 +15,24 @@ El directorio raíz se reserva para este README y `.gitignore`. La documentació
 | `src/models/` | Constructor de Xception y funciones de pérdida. |
 | `src/teardown/` | Análisis de FLOPs, campo receptivo, latencia, memoria y Grad-CAM. |
 | `src/` | Puntos de entrada para entrenamiento, evaluación in-domain y comparación cross-manipulation. |
+| `src/kaggle_e2/` | Módulos que usan los notebooks E2: datos, recorte, pérdida focal, entrenamiento, teardown y Grad-CAM. |
 | `tests/` | Pruebas del pipeline y criterios BCE/focal; las que requieren PyTorch se activan en el entorno Kaggle. |
-| `notebooks/kaggle/` | Notebooks diseñados para explorar o ejecutar etapas en Kaggle. El explorador de FF++ es una herramienta preliminar, no el pipeline oficial de experimentos. |
-| `results/` | Manifiestos de split y métricas reproducibles; checkpoints y figuras derivadas de muestras del dataset se excluyen de Git por defecto. |
+| `notebooks/kaggle/` | Notebooks E2 (`01`–`03`: teardown, preprocesamiento, BCE vs. focal) y el explorador preliminar de FF++. |
+| `tools/` | Generadores de los notebooks E2 y `limpiar_caras.py` (licencia de FF++). |
+| `results/` | Splits, tablas del teardown (`results/teardown/`) y métricas por corrida (`results/runs/`); checkpoints y figuras con caras del dataset se excluyen de Git. |
 
-Para el detalle de cada módulo y el flujo recomendado, consulta [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md). El avance y los pendientes se mantienen en [E2](docs/E2_Tareas_programacion.md); las decisiones técnicas están en [DECISIONS](docs/DECISIONS.md).
+Para el detalle de cada módulo y el flujo recomendado, consulta [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md). El avance y los pendientes se mantienen en [E2](docs/E2_Tareas_programacion.md); las decisiones técnicas, hipótesis y uso de IA están en [DECISIONS](docs/DECISIONS.md).
+
+## Ejecución E2 en Kaggle (notebooks)
+
+Los resultados del avance E2 se producen con los notebooks de `notebooks/kaggle/`. Cada uno clona este repositorio en `/kaggle/working/repo`; en Kaggle activa **GPU T4** e **Internet**.
+
+1. **Script de descarga de FF++:** súbelo como **Kaggle Dataset privado** (*Add Input → Upload*). Es el que llega con el correo de aprobación de acceso; no se versiona ni se enlaza aquí (licencia).
+2. **[`02_preprocesamiento_ffpp.ipynb`](notebooks/kaggle/02_preprocesamiento_ffpp.ipynb):** descarga FF++ c23 y genera `/kaggle/working/crops/` (MTCNN, 16 frames por video) para 100/30/70 pares oficiales (D-05).
+3. **[`03_entrenamiento_bce_vs_focal.ipynb`](notebooks/kaggle/03_entrenamiento_bce_vs_focal.ipynb):** entrena BCE (γ=0) y Focal (γ=2) con el mismo protocolo y evalúa in-domain y cross-manipulation. Escribe `results/runs/*.json`, `results/comparacion_bce_vs_focal.csv` y las figuras.
+4. **[`01_teardown_xception.ipynb`](notebooks/kaggle/01_teardown_xception.ipynb):** Fase A. Las secciones 1–4 no necesitan datos; la sección 5 usa los recortes y los checkpoints.
+
+Si 02 y 03 se ejecutan en la misma sesión, 03 encuentra los recortes en `/kaggle/working/crops`. Antes de subir a GitHub un notebook ejecutado, corre `python tools/limpiar_caras.py` (ver Licencias).
 
 ## Preparar el entorno
 
@@ -95,6 +108,23 @@ Los puntos de entrada de datos, entrenamiento y evaluación ya están implementa
 Los notebooks de `notebooks/kaggle/` se versionan en GitHub y se pueden importar o clonar en Kaggle. Kaggle ejecuta su propia copia/versionado del notebook: para devolver cambios al repositorio, guarda/exporta el `.ipynb` y súbelo mediante Git. Los datos privados deben adjuntarse como Kaggle Dataset o almacenarse fuera del repositorio; usa `/kaggle/input/` para leerlos y `/kaggle/working/` para salidas temporales. La sincronización automática GitHub–Kaggle aún no está configurada.
 
 El notebook exploratorio actual descarga una muestra pequeña para inspección visual. No reemplaza los splits oficiales, el preprocesamiento completo ni las corridas registradas requeridas por E2.
+
+## Licencias y datos
+
+- **FaceForensics++** (Rössler et al., 2019): uso académico bajo los términos de TU München. Videos, frames, recortes de caras y el script oficial de descarga **no se redistribuyen**: no se suben a este repositorio y el script no se enlaza.
+- Las celdas de los notebooks que muestran caras llevan el tag `caras`. `python tools/limpiar_caras.py` borra sus salidas y `python tools/limpiar_caras.py --check` falla si queda alguna o si un notebook contiene la URL del script. Las figuras con caras están en `.gitignore`.
+- **Splits:** `results/splits/{train,val,test}.json` son los metadatos públicos de [`ondyari/FaceForensics`](https://github.com/ondyari/FaceForensics/tree/master/dataset/splits).
+- **DFDC Preview** (Dolhansky et al., 2019): términos de uso de Meta.
+- **Pesos ImageNet de Xception:** `timm` (Apache-2.0).
+- **Uso responsable:** los videos contienen rostros de personas reales. Se usan solo para investigación, sin intentar identificar a las personas y sin generar deepfakes nuevos.
+
+## Referencias principales
+
+- A. Rössler et al., "FaceForensics++: Learning to Detect Manipulated Facial Images," ICCV 2019.
+- F. Chollet, "Xception: Deep Learning with Depthwise Separable Convolutions," CVPR 2017.
+- T.-Y. Lin et al., "Focal Loss for Dense Object Detection," ICCV 2017.
+- W. Luo et al., "Understanding the Effective Receptive Field in Deep Convolutional Neural Networks," NeurIPS 2016.
+- R. R. Selvaraju et al., "Grad-CAM," ICCV 2017.
 
 ## Reproducibilidad
 
