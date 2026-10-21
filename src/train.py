@@ -83,8 +83,8 @@ def _loader(config: dict, split: str, *, shuffle: bool) -> DataLoader:
         processed_root=paths["processed_root"],
         horizontal_flip=bool(data.get("horizontal_flip", True)) and split == "train",
         manipulations=train_manipulations,
-        normalization_mean=tuple(data.get("normalization_mean", (0.485, 0.456, 0.406))),
-        normalization_std=tuple(data.get("normalization_std", (0.229, 0.224, 0.225))),
+        normalization_mean=tuple(data.get("normalization_mean", (0.5, 0.5, 0.5))),
+        normalization_std=tuple(data.get("normalization_std", (0.5, 0.5, 0.5))),
     )
     generator = torch.Generator().manual_seed(int(config.get("seed", 42))) if shuffle else None
     return DataLoader(
