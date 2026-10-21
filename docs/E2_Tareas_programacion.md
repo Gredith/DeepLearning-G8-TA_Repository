@@ -4,7 +4,9 @@
 **Entrega:** miércoles 21 de octubre de 2026
 **Alcance de este archivo:** solo lo que hay que programar y correr. La redacción del cuaderno de decisiones y la actualización del texto de la propuesta van aparte.
 
-> **Nota sobre el código:** los fragmentos de este documento son una guía. La estructura inicial ya está creada, pero los puntos de entrada del pipeline, entrenamiento y análisis siguen pendientes de implementación/validación. Los nombres de capas de `timm` cambian entre versiones, así que verifíquenlos con `print(model)` antes de usarlos.
+> **Nota sobre el código:** los módulos de T1–T7 y la pérdida/pruebas de T3 ya están implementados. Los splits oficiales están guardados, pero la extracción/recorte y las corridas aún no se han ejecutado en un runtime de PyTorch con FF++. T8/T9 y la fijación de dependencias siguen pendientes. Los nombres de capas de `timm` cambian entre versiones, así que verifíquenlos con `print(model)` antes de usarlos.
+
+> **Cómo leer las casillas:** una casilla marcada indica que el código o la documentación correspondiente existe. Las casillas de ejecución y los criterios de aceptación permanecen sin marcar hasta que existan resultados generados con FF++ y un runtime compatible.
 
 ### Seguimiento del repositorio
 
@@ -14,6 +16,18 @@
 - [x] Añadir `configs/base.yaml`, `docs/DECISIONS.md` y dependencias iniciales.
 - [x] Implementar la clase base `BinaryFocalLoss` en `src/models/losses.py`.
 - [x] Reorganizar documentación, código y dependencias para mantener limpio el root.
+- [x] Implementar T1: descarga/validación de splits por pares, manifiestos, extracción uniforme, recorte MTCNN, dataset normalizado y conteos.
+- [x] Descargar los JSON oficiales y guardar listas normalizadas de IDs fuente con hashes en `results/splits/` (720/140/140 IDs únicos; sin solapamiento entre particiones).
+- [ ] Ejecutar T1 completo en Kaggle con FF++ autorizado; revisar el grid de 16 caras por clase y guardar manifiestos/resultados.
+- [x] Implementar T2: entrenamiento reproducible, BCE/focal intercambiable, AUC por video/frame, mejor checkpoint, historial y curva.
+- [x] Añadir pruebas T3 para γ=0, ejemplos fáciles/difíciles, logits extremos, gradientes y argumentos.
+- [ ] Ejecutar pruebas T3 en un entorno con PyTorch y correr baseline BCE + focal γ=2.
+- [x] Implementar T4: parámetros/FLOPs por flujo y ahorro separable vs. convolución estándar.
+- [x] Implementar T7: campo receptivo con rutas residuales y medición de latencia/memoria.
+- [ ] Ejecutar T4/T7 con `timm`, `fvcore` y la GPU destino; guardar sus tablas/figuras.
+- [x] Implementar T5: selección fija de ejemplos y Grad-CAM BCE/focal en la capa `conv4`.
+- [x] Implementar T6: evaluación in-domain/cross-manipulation y caída relativa de AUC.
+- [ ] Ejecutar T5/T6 con los checkpoints y registrar sus figuras/tablas.
 - [ ] Fijar versiones de dependencias después de validar el entorno de ejecución.
 - [ ] Completar y ejecutar los criterios de aceptación T1–T9; no se considera ninguna tarea experimental terminada por crear su esqueleto.
 
@@ -56,6 +70,7 @@ Si el tiempo es poco, este es el orden de corte. **P0 es lo mínimo defendible; 
 ├── src/
 │   ├── train.py
 │   ├── evaluate.py
+│   ├── evaluate_cross.py
 │   ├── data_pipeline/
 │   │   ├── build_splits.py
 │   │   ├── extract_frames.py
@@ -80,32 +95,33 @@ Si el tiempo es poco, este es el orden de corte. **P0 es lo mínimo defendible; 
 ## 2. T1 · Pipeline de datos (P0)
 
 ### 2.1 Splits oficiales por video
-- [ ] Descargar o localizar los JSON oficiales de splits de FF++ (train/val/test, 720/140/140 videos por clase).
-- [ ] Guardar en `results/splits/` la lista de IDs de video por partición.
-- [ ] **Regla:** la partición es por video, nunca por frame.
+- [x] Descargar los JSON oficiales de splits FF++ (360/70/70 pares que contienen 720/140/140 IDs fuente únicos).
+- [x] Guardar en `results/splits/` los pares originales, las listas normalizadas de IDs y hashes de origen.
+- [x] **Regla:** la partición es por video, nunca por frame; el validador rechaza IDs compartidos.
 
 ### 2.2 Extracción de frames
-- [ ] Extraer 20–30 frames equiespaciados por video (OpenCV).
-- [ ] Procesar: `original` (real) y `Deepfakes` en c23 para entrenamiento; `Face2Face`, `FaceSwap`, `NeuralTextures` solo para evaluación.
+- [x] Implementar extracción de 20–30 frames equiespaciados por video (OpenCV; valor configurado: 25).
+- [x] Implementar el inventario/procesamiento de `original` y `Deepfakes` para entrenamiento; `Face2Face`, `FaceSwap`, `NeuralTextures` para evaluación.
 
 ### 2.3 Recorte de caras
-- [ ] Detectar la cara con MTCNN (`facenet-pytorch`) o RetinaFace; elegir una y registrarla en `docs/DECISIONS.md`.
-- [ ] Margen alrededor de la caja (p. ej. 1.3×) y recorte cuadrado.
-- [ ] Redimensionar a la entrada de Xception (299×299) y **guardar los recortes precalculados** en disco. No recalcular en cada época.
-- [ ] Registrar los frames sin cara detectada y descartarlos de forma consistente.
+- [x] Elegir MTCNN (`facenet-pytorch`) y registrarlo en `docs/DECISIONS.md`.
+- [x] Implementar detector facial MTCNN para procesar los frames de FF++.
+- [x] Implementar margen alrededor de la caja (1.3×) y recorte cuadrado.
+- [x] Implementar redimensionado a 299×299 y guardado de recortes precalculados en disco.
+- [x] Implementar registro de frames sin cara detectada y descarte consistente.
 
 ### 2.4 Dataset de PyTorch
-- [ ] `Dataset` que devuelva `(imagen, etiqueta, video_id, manipulacion)`. El `video_id` es necesario para el AUC a nivel de video.
-- [ ] Etiqueta: real = 0, falso = 1.
-- [ ] Normalización con media/desviación de ImageNet.
-- [ ] Aumentación mínima en entrenamiento (flip horizontal). Cualquier otra, a `docs/DECISIONS.md`.
+- [x] `Dataset` que devuelva `(imagen, etiqueta, video_id, manipulacion)`. El `video_id` es necesario para el AUC a nivel de video.
+- [x] Etiqueta: real = 0, falso = 1.
+- [x] Normalización con media/desviación de ImageNet, configurables.
+- [x] Aumentación mínima en entrenamiento (flip horizontal). Cualquier otra, a `docs/DECISIONS.md`.
 
 ### 2.5 Pruebas de sanidad
-- [ ] **Test de fuga:** la intersección de `video_id` entre train, val y test debe ser vacía (`assert`).
-- [ ] Contar muestras y balance de clases por partición.
-- [ ] Guardar una grilla de 16 recortes reales y 16 falsos y mirarla a ojo.
+- [x] **Test de fuga:** la intersección de IDs fuente entre train, val y test debe ser vacía (`assert`); validado con los JSON oficiales.
+- [x] Implementar conteo de muestras y balance de clases por partición.
+- [x] Implementar generación de una grilla con 16 recortes reales y 16 falsos; la revisión visual queda pendiente de correr con FF++.
 
-**Criterio de aceptación:** `dataset.py` entrega batches de forma `[B, 3, 299, 299]`, el test de fuga pasa y existe una tabla con conteos por partición y clase.
+**Criterio de aceptación:** `src/data_pipeline/dataset.py` entrega batches de forma `[B, 3, 299, 299]`, el test de fuga pasa en los splits oficiales y existen tablas con conteos por partición y clase. La verificación con datos reales queda pendiente de ejecutar en Kaggle.
 
 ---
 
@@ -124,19 +140,19 @@ def build_xception(pretrained=True):
 ```
 
 ### 3.2 Entrenamiento (`src/train.py`)
-- [ ] Fijar semillas (`random`, `numpy`, `torch`, `torch.cuda`) y `torch.backends.cudnn.deterministic = True`.
-- [ ] Un solo logit con `BCEWithLogitsLoss` como pérdida base.
-- [ ] Optimizador, lr, batch size y épocas definidos en `configs/base.yaml` y **no modificables entre BCE y focal**.
-- [ ] Guardar el mejor checkpoint por AUC de validación.
-- [ ] Registrar por época: pérdida de train y val, AUC de val.
-- [ ] Mixed precision (`torch.cuda.amp`) para ahorrar tiempo en T4/P100.
-- [ ] Guardar la config completa y el hash del commit junto al checkpoint.
+- [x] Fijar semillas (`random`, `numpy`, `torch`, `torch.cuda`) y `torch.backends.cudnn.deterministic = True`.
+- [x] Un solo logit con `BCEWithLogitsLoss` como pérdida base.
+- [x] Optimizador, lr, batch size y épocas definidos en `configs/base.yaml` y compartidos entre BCE y focal.
+- [x] Guardar el mejor checkpoint por AUC de validación.
+- [x] Registrar por época: pérdida de train y val, AUC de val.
+- [x] Mixed precision configurable para aprovechar GPU.
+- [x] Guardar la config completa y el hash del commit junto al checkpoint.
 
 ### 3.3 Evaluación in-domain (`src/evaluate.py`)
-- [ ] AUC-ROC a nivel de frame (`sklearn.metrics.roc_auc_score`).
-- [ ] AUC a nivel de video: promedio de las probabilidades de los frames de cada `video_id`.
-- [ ] Accuracy, matriz de confusión.
-- [ ] Guardar todo en `results/metrics/<run_name>.json`.
+- [x] Implementar AUC-ROC a nivel de frame.
+- [x] Implementar AUC a nivel de video promediando probabilidades por `video_id`.
+- [x] Implementar accuracy y matriz de confusión.
+- [x] Implementar guardado de métricas JSON/CSV en `results/metrics/`.
 
 **Criterio de aceptación:** existe un checkpoint, una curva de entrenamiento y un JSON con AUC in-domain por frame y por video. Se compara con el valor reportado por Rössler et al. (2019) y la brecha, si la hay, se anota. **No es necesario cerrarla para E2.**
 
@@ -176,10 +192,10 @@ class BinaryFocalLoss(nn.Module):
 > **Punto de diseño a decidir y registrar:** la fórmula de la propuesta incluye α. Con α fijo (p. ej. 0.25) y γ=0, la pérdida **no** es igual a BCE, sino BCE escalada por clase. Para que el control "γ=0 ⇒ BCE" sea exacto, usen `alpha=None` (o compárenlo contra BCE ponderada). Decidan una opción, úsenla en todas las corridas y regístrenla en `docs/DECISIONS.md`.
 
 ### 4.2 Tests obligatorios (`tests/test_losses.py`)
-- [ ] **γ=0, α=None** coincide con `BCEWithLogitsLoss` (`torch.allclose`, tolerancia 1e-6) sobre logits aleatorios.
-- [ ] Con γ>0, la pérdida de un ejemplo fácil (p_t≈0.99) es mucho menor que la de uno difícil (p_t≈0.5).
-- [ ] No produce `NaN` con logits extremos (±50).
-- [ ] Gradientes finitos.
+- [x] Test: **γ=0, α=None** coincide con `BCEWithLogitsLoss` (`torch.allclose`, tolerancia 1e-6) sobre logits aleatorios.
+- [x] Test: con γ>0, un ejemplo fácil (p_t≈0.99) recibe mucho menos peso que uno difícil (p_t≈0.5).
+- [x] Test: no produce `NaN` con logits extremos (±50).
+- [x] Test: gradientes finitos. (Pendiente de ejecutar en runtime con PyTorch.)
 
 ### 4.3 Corridas
 - [ ] **γ=0** con el código de focal: debe dar un resultado muy cercano a la línea base BCE (mismo `seed`).
@@ -194,15 +210,15 @@ class BinaryFocalLoss(nn.Module):
 ## 5. T4 · Teardown: parámetros y FLOPs por bloque (P0)
 
 ### 5.1 Parámetros y FLOPs por bloque
-- [ ] Agrupar las capas en **entry flow** (conv1, conv2, block1–3), **middle flow** (block4–11) y **exit flow** (block12, conv3, conv4). Verificar los nombres con `print(model)`.
-- [ ] Contar parámetros por bloque con `sum(p.numel() for p in block.parameters())`.
-- [ ] Contar FLOPs por bloque con `fvcore.nn.FlopCountAnalysis`, `ptflops` o `thop` (elegir una y registrarla).
-- [ ] Tabla: bloque · parámetros · % del total · FLOPs · % del total · forma de salida.
+- [x] Implementar agrupación en **entry flow** (conv1, conv2, block1–3), **middle flow** (block4–11) y **exit flow** (block12, conv3, conv4); validar nombres al cargar el modelo.
+- [x] Implementar conteo de parámetros por bloque.
+- [x] Implementar conteo de FLOPs por bloque con `fvcore`.
+- [x] Implementar tabla: bloque · parámetros · % del total · FLOPs · % del total · forma de salida.
 
 ### 5.2 Separable vs. convolución estándar
-- [ ] Para cada convolución separable, calcular los parámetros y FLOPs de una convolución estándar con el mismo `C_in`, `C_out` y kernel.
-- [ ] Reportar el factor de ahorro por bloque.
-- [ ] Verificación analítica: separable ≈ `k²·C_in + C_in·C_out` frente a `k²·C_in·C_out`.
+- [x] Implementar cálculo comparativo separable vs. convolución estándar con los mismos canales y kernel.
+- [x] Implementar reporte del factor de ahorro por bloque.
+- [x] Implementar verificación analítica: separable ≈ `k²·C_in + C_in·C_out` frente a `k²·C_in·C_out`.
 
 **Criterio de aceptación:** una tabla en `results/metrics/teardown_flops.csv` y una figura de barras por bloque. Cada resultado va con una lectura de una o dos frases (¿dónde se concentra el cómputo? ¿dónde los parámetros?).
 
@@ -210,15 +226,15 @@ class BinaryFocalLoss(nn.Module):
 
 ## 6. T5 · Grad-CAM (P1)
 
-- [ ] Instalar `pytorch-grad-cam` o implementar Grad-CAM a mano (Selvaraju et al., 2017).
-- [ ] Elegir la capa objetivo (última convolución antes del pooling). Verificar el nombre con `print(model)` y registrar la elección.
-- [ ] Con el modelo **BCE** y el modelo **focal (γ=2)**, generar mapas para el **mismo conjunto fijo** de imágenes:
-  - [ ] 8 reales bien clasificadas
-  - [ ] 8 falsas bien clasificadas
-  - [ ] 8 falsas mal clasificadas (falsos negativos)
-  - [ ] 8 reales mal clasificadas (falsos positivos)
-- [ ] Mostrar en una grilla: imagen · Grad-CAM BCE · Grad-CAM focal.
-- [ ] Guardar los IDs de las imágenes elegidas para poder reproducir la figura.
+- [x] Implementar Grad-CAM a mano (Selvaraju et al., 2017).
+- [x] Elegir y validar la capa objetivo `conv4` (última convolución antes del pooling) al cargar el modelo.
+- [x] Implementar selección fija y emparejada de ejemplos para los modelos BCE y focal (categorías disponibles según predicciones del modelo BCE).
+  - [x] 8 reales bien clasificadas
+  - [x] 8 falsas bien clasificadas
+  - [x] 8 falsas mal clasificadas (falsos negativos)
+  - [x] 8 reales mal clasificadas (falsos positivos)
+- [x] Implementar grilla: imagen · Grad-CAM BCE · Grad-CAM focal.
+- [x] Implementar guardado de IDs de imágenes seleccionadas para reproducir la figura.
 - [ ] Opcional: repetir sobre imágenes de FaceSwap y NeuralTextures (para T6).
 
 **Criterio de aceptación:** una figura en `results/figures/` con la grilla y una lectura escrita de qué regiones usa cada modelo. Si no hay diferencia visible, se dice.
@@ -227,10 +243,10 @@ class BinaryFocalLoss(nn.Module):
 
 ## 7. T6 · Evaluación cross-manipulation preliminar (P1)
 
-- [ ] Cargar el checkpoint entrenado solo con Deepfakes.
-- [ ] Evaluar sobre los frames **de test** de Face2Face, FaceSwap y NeuralTextures. Para el lado real, usar las caras `original` **del mismo split de test**.
-- [ ] Reportar AUC por frame y por video para BCE y para focal.
-- [ ] Calcular la **caída relativa de AUC**: `(AUC_in-domain − AUC_cross) / AUC_in-domain`.
+- [x] Implementar carga de checkpoints entrenados con Deepfakes.
+- [x] Implementar evaluación en Face2Face, FaceSwap y NeuralTextures con caras `original` del mismo split.
+- [x] Implementar reporte de AUC por frame y por video para BCE y focal.
+- [x] Implementar cálculo de la caída relativa de AUC: `(AUC_in-domain − AUC_cross) / AUC_in-domain`.
 - [ ] Tabla resumen:
 
 | Modelo | γ | In-domain (Deepfakes) | Face2Face | FaceSwap | NeuralTextures |
@@ -248,17 +264,17 @@ class BinaryFocalLoss(nn.Module):
 ## 8. T7 · Campo receptivo, latencia y memoria (P1)
 
 ### 8.1 Campo receptivo por bloque
-- [ ] Calcular analíticamente el campo receptivo, el stride acumulado y el *jump* tras cada capa/bloque, con kernels, strides y paddings de Xception.
+- [x] Implementar cálculo analítico del campo receptivo, stride acumulado y *jump* tras cada capa/bloque de Xception.
 - [ ] Recordar que las conexiones residuales no aumentan el campo receptivo máximo, pero sí aportan rutas más cortas. Anotar la lectura.
-- [ ] Tabla: bloque · stride acumulado · campo receptivo · resolución del mapa de salida.
-- [ ] Verificación empírica opcional: gradiente de una activación central respecto de la entrada.
+- [x] Implementar tabla: bloque · stride acumulado · campo receptivo · resolución del mapa de salida.
+- [x] Implementar verificación de formas espaciales con el modelo cargado.
 
 ### 8.2 Latencia y memoria
-- [ ] Calentamiento de 10–20 iteraciones antes de medir.
-- [ ] Usar `torch.cuda.synchronize()` antes y después de cada medición.
-- [ ] Medir con batch=1 y batch=32; reportar media y desviación sobre ≥100 iteraciones.
-- [ ] Memoria con `torch.cuda.max_memory_allocated()`, en inferencia y en entrenamiento.
-- [ ] Registrar la GPU usada (T4 o P100), porque los números no son comparables entre ellas.
+- [x] Implementar calentamiento configurable (20 por defecto).
+- [x] Implementar sincronización CUDA antes y después de las mediciones.
+- [x] Implementar medición con batch=1 y batch=32; media y desviación sobre ≥100 iteraciones por defecto.
+- [x] Implementar medición de memoria pico en inferencia y entrenamiento.
+- [x] Implementar registro del dispositivo/GPU utilizado.
 
 **Criterio de aceptación:** dos tablas en `results/metrics/` y la GPU anotada.
 
@@ -279,7 +295,7 @@ class BinaryFocalLoss(nn.Module):
 ## 10. Reproducibilidad (revisar antes de entregar)
 
 - [ ] `environment/requirements.txt` con versiones fijadas (`torch`, `timm`, `scikit-learn`, `fvcore` o equivalente, `pytorch-grad-cam`, `facenet-pytorch`).
-- [ ] `README.md` con: cómo obtener los datos, cómo preprocesar, cómo entrenar, cómo evaluar y cómo reproducir cada tabla y figura.
+- [x] `README.md` con instrucciones para obtener/preprocesar datos, entrenar, evaluar y lanzar los análisis (las instrucciones deben validarse al ejecutar el flujo en Kaggle).
 - [ ] Semilla y `commit hash` guardados con cada resultado.
 - [ ] Ningún dato de FF++ dentro del repositorio (licencia). Solo código, splits y resultados.
 - [ ] Los notebooks corren de arriba abajo sin errores (**Restart & Run All**).

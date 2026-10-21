@@ -4,10 +4,17 @@ paths:
   data_root: data/ff++
   processed_root: data/processed
   results_root: results
+  splits_root: results/splits
+  crop_manifest: results/splits/crop_manifest.csv
 
 data:
+  compression: c23
   image_size: 299
+  face_margin: 1.3
   frames_per_video: 25
+  horizontal_flip: true
+  normalization_mean: [0.485, 0.456, 0.406]
+  normalization_std: [0.229, 0.224, 0.225]
   train_manipulations: [original, Deepfakes]
   evaluation_manipulations: [original, Face2Face, FaceSwap, NeuralTextures]
 
