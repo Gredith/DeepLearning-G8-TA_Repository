@@ -1,0 +1,3 @@
+variante,params (M),GFLOPs,factor vs separable
+Xception (separable),20.809001,16.710715088,1.0
+Misma red con conv estándar 3x3,177.024737,137.632599488,8.236188503197823

@@ -1,0 +1,17 @@
+modulo,flow,RF teórico (px),stride acumulado,lado ERF 95% (px),lado ERF 50% (px)
+conv1,stem,3,2,,
+conv2,stem,7,2,,
+block1,entry,19,4,17.0,9.0
+block2,entry,43,8,31.0,15.0
+block3,entry,91,16,57.0,25.0
+block4,middle,187,16,,
+block5,middle,283,16,123.0,43.0
+block6,middle,379,16,,
+block7,middle,475,16,177.0,59.0
+block8,middle,571,16,,
+block9,middle,667,16,249.0,83.0
+block10,middle,763,16,,
+block11,middle,859,16,261.0,91.0
+block12,exit,955,32,281.0,137.0
+conv3,exit,1019,32,,
+conv4,exit,1083,32,283.0,157.0

@@ -1,0 +1,4 @@
+,0
+pesos fp32 (MB),79.4
+"activaciones fp32, batch 1 (MB, cota)",281.8
+"activaciones fp32, batch 32 (MB, cota)",9019.0

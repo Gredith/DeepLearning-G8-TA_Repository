@@ -9,13 +9,17 @@ El repositorio separa documentación, código, configuración, notebooks y resul
 | `docs/` | Documentación humana: propuesta E1, tareas y criterios de E2, decisiones técnicas y esta guía. |
 | `environment/` | Dependencias reproducibles, incluyendo `requirements.txt`; fijar versiones antes de las corridas oficiales. |
 | `configs/` | Archivos YAML compartidos. `base.yaml` centraliza semillas, parámetros de entrenamiento y rutas relativas/configurables. |
-| `src/data_pipeline/` | Descarga y auditoría de splits oficiales de video, manifiesto de clips, extracción equiespaciada, recortes MTCNN precalculados y `Dataset` con normalización ImageNet. |
+| `src/data_pipeline/` | Descarga y auditoría de splits oficiales de video, manifiesto de clips, extracción equiespaciada, recortes MTCNN precalculados y `Dataset` con la normalización de `configs/base.yaml` (0.5/0.5, la de `legacy_xception`). |
+| `src/kaggle_e2/` | Módulos planos que importan los notebooks E2 (`sys.path` apunta a esta carpeta): splits y `Dataset` de recortes, recorte MTCNN, pérdida focal, entrenamiento/evaluación, teardown y Grad-CAM. |
 | `src/models/` | Constructor de Xception y pérdidas (BCE/focal). |
 | `src/teardown/` | Scripts de análisis de arquitectura, FLOPs, campo receptivo, rendimiento y explicabilidad. |
 | `src/train.py`, `src/evaluate.py`, `src/evaluate_cross.py` | Interfaces de línea de comandos para entrenar, medir in-domain y generar la tabla cross-manipulation. Se invocan desde la raíz. |
 | `tests/` | Pruebas unitarias y de sanidad: pérdidas, formas, métricas y ausencia de fuga entre splits. |
-| `notebooks/kaggle/` | Notebooks autocontenidos para ingestión/exploración o experimentos que requieran el entorno Kaggle. Deben leer datos de `/kaggle/input/` y escribir salidas en `/kaggle/working/`. |
+| `notebooks/kaggle/` | Notebooks E2 (`01_teardown_xception`, `02_preprocesamiento_ffpp`, `03_entrenamiento_bce_vs_focal`) y el explorador preliminar de FF++. Leen datos de `/kaggle/input/` y escriben salidas en `/kaggle/working/`. |
+| `tools/` | `build_nb01.py` y `build_nb02_03.py` generan los notebooks E2; `limpiar_caras.py` borra las salidas con caras antes de versionar. |
 | `results/splits/` | Manifiestos/listas de IDs por partición, sin datos personales o medios del dataset. |
+| `results/teardown/` | Tablas (CSV) y figuras de la Fase A sin imágenes del dataset. |
+| `results/runs/` | JSON por corrida de los notebooks E2: configuración, historial por época y métricas de test. |
 | `results/metrics/` | Métricas JSON/CSV y tablas de análisis. |
 | `results/figures/` | Figuras producidas por los análisis y notebooks. |
 | `results/checkpoints/` | Pesos de modelos. Pesados y excluidos de Git por defecto. |
@@ -29,6 +33,8 @@ El repositorio separa documentación, código, configuración, notebooks y resul
 - Registrar parámetros de corrida y hash del commit. Mantener las credenciales fuera del notebook y del repositorio.
 - GitHub y Kaggle son copias/versiones distintas salvo que se configure una sincronización explícita. Importar/actualizar el notebook en Kaggle y exportar/commit de vuelta es el flujo manual actual.
 - No almacenar FF++ en GitHub. En Kaggle usar un Dataset privado autorizado y tratar `/kaggle/input/` como solo lectura.
+- El script oficial de descarga de FF++ se sube a Kaggle como Dataset privado; no se versiona ni se enlaza su URL.
+- Las celdas que muestran caras llevan el tag `caras`. Antes de versionar un notebook ejecutado, correr `python tools/limpiar_caras.py` y comprobar con `--check` (D-11).
 
 ## Reglas de mantenimiento
 
