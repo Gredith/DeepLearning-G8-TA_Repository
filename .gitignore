@@ -37,3 +37,14 @@ results/figures/data_sanity_grid.jpg
 Thumbs.db
 .idea/
 .vscode/
+
+# FaceForensics++ terms of use: never version videos, frames, face crops, or the download script
+*.mp4
+crops/
+faceforensics_download*.py
+download-faceforensics*.py
+download-FaceForensics*.py
+# Figures that show dataset faces (keep them in Kaggle; run tools/limpiar_caras.py before committing notebooks)
+results/**/ejemplo_recortes.png
+results/**/fig_gradcam_*.png
+results/**/fig_activaciones_*.png
