@@ -7,6 +7,8 @@ __pycache__/
 venv/
 env/
 .env
+kaggle.json
+.kaggle/
 
 # Tooling
 .pytest_cache/

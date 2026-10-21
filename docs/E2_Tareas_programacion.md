@@ -11,8 +11,9 @@
 - [x] Crear la estructura inicial de carpetas y módulos descrita en este E2.
 - [x] Actualizar README con el flujo previsto, preparación del entorno y estado real de implementación.
 - [x] Añadir `.gitignore` para entornos Python, datos locales y artefactos generados.
-- [x] Añadir `configs/base.yaml`, `DECISIONS.md` y dependencias iniciales.
-- [x] Implementar la clase base `BinaryFocalLoss` en `models/losses.py`.
+- [x] Añadir `configs/base.yaml`, `docs/DECISIONS.md` y dependencias iniciales.
+- [x] Implementar la clase base `BinaryFocalLoss` en `src/models/losses.py`.
+- [x] Reorganizar documentación, código y dependencias para mantener limpio el root.
 - [ ] Fijar versiones de dependencias después de validar el entorno de ejecución.
 - [ ] Completar y ejecutar los criterios de aceptación T1–T9; no se considera ninguna tarea experimental terminada por crear su esqueleto.
 
@@ -43,27 +44,28 @@ Si el tiempo es poco, este es el orden de corte. **P0 es lo mínimo defendible; 
 ```
 .
 ├── README.md
-├── requirements.txt
-├── DECISIONS.md
+├── docs/
+│   ├── E1 _Propuesta de tema_Grupo_8.md
+│   ├── E2_Tareas_programacion.md
+│   ├── DECISIONS.md
+│   └── PROJECT_STRUCTURE.md
+├── environment/
+│   └── requirements.txt
 ├── configs/
 │   └── base.yaml              # semilla, lr, batch, épocas, rutas, γ, α
-├── data_pipeline/
-│   ├── extract_frames.py
-│   ├── crop_faces.py
-│   ├── build_splits.py
-│   └── dataset.py
-├── models/
-│   ├── xception.py
-│   └── losses.py
-├── train.py
-├── evaluate.py
-├── teardown/
-│   ├── flops_params.py
-│   ├── receptive_field.py
-│   ├── latency_memory.py
-│   └── gradcam.py
+├── src/
+│   ├── train.py
+│   ├── evaluate.py
+│   ├── data_pipeline/
+│   │   ├── build_splits.py
+│   │   ├── extract_frames.py
+│   │   ├── crop_faces.py
+│   │   └── dataset.py
+│   ├── models/                 # Xception y pérdidas
+│   └── teardown/               # FLOPs, campo receptivo, latencia, Grad-CAM
 ├── notebooks/
-│   └── 00_resumen_resultados.ipynb
+│   └── kaggle/                 # exploración/experimentos en Kaggle
+├── tests/                      # pruebas unitarias y de sanidad
 └── results/
     ├── checkpoints/
     ├── metrics/               # JSON/CSV por corrida
@@ -87,7 +89,7 @@ Si el tiempo es poco, este es el orden de corte. **P0 es lo mínimo defendible; 
 - [ ] Procesar: `original` (real) y `Deepfakes` en c23 para entrenamiento; `Face2Face`, `FaceSwap`, `NeuralTextures` solo para evaluación.
 
 ### 2.3 Recorte de caras
-- [ ] Detectar la cara con MTCNN (`facenet-pytorch`) o RetinaFace; elegir una y registrarla en `DECISIONS.md`.
+- [ ] Detectar la cara con MTCNN (`facenet-pytorch`) o RetinaFace; elegir una y registrarla en `docs/DECISIONS.md`.
 - [ ] Margen alrededor de la caja (p. ej. 1.3×) y recorte cuadrado.
 - [ ] Redimensionar a la entrada de Xception (299×299) y **guardar los recortes precalculados** en disco. No recalcular en cada época.
 - [ ] Registrar los frames sin cara detectada y descartarlos de forma consistente.
@@ -96,7 +98,7 @@ Si el tiempo es poco, este es el orden de corte. **P0 es lo mínimo defendible; 
 - [ ] `Dataset` que devuelva `(imagen, etiqueta, video_id, manipulacion)`. El `video_id` es necesario para el AUC a nivel de video.
 - [ ] Etiqueta: real = 0, falso = 1.
 - [ ] Normalización con media/desviación de ImageNet.
-- [ ] Aumentación mínima en entrenamiento (flip horizontal). Cualquier otra, a `DECISIONS.md`.
+- [ ] Aumentación mínima en entrenamiento (flip horizontal). Cualquier otra, a `docs/DECISIONS.md`.
 
 ### 2.5 Pruebas de sanidad
 - [ ] **Test de fuga:** la intersección de `video_id` entre train, val y test debe ser vacía (`assert`).
@@ -111,7 +113,7 @@ Si el tiempo es poco, este es el orden de corte. **P0 es lo mínimo defendible; 
 
 ### 3.1 Modelo
 ```python
-# models/xception.py
+# src/models/xception.py
 import timm, torch.nn as nn
 
 def build_xception(pretrained=True):
@@ -121,7 +123,7 @@ def build_xception(pretrained=True):
     return model  # salida: un logit por imagen
 ```
 
-### 3.2 Entrenamiento (`train.py`)
+### 3.2 Entrenamiento (`src/train.py`)
 - [ ] Fijar semillas (`random`, `numpy`, `torch`, `torch.cuda`) y `torch.backends.cudnn.deterministic = True`.
 - [ ] Un solo logit con `BCEWithLogitsLoss` como pérdida base.
 - [ ] Optimizador, lr, batch size y épocas definidos en `configs/base.yaml` y **no modificables entre BCE y focal**.
@@ -130,7 +132,7 @@ def build_xception(pretrained=True):
 - [ ] Mixed precision (`torch.cuda.amp`) para ahorrar tiempo en T4/P100.
 - [ ] Guardar la config completa y el hash del commit junto al checkpoint.
 
-### 3.3 Evaluación in-domain (`evaluate.py`)
+### 3.3 Evaluación in-domain (`src/evaluate.py`)
 - [ ] AUC-ROC a nivel de frame (`sklearn.metrics.roc_auc_score`).
 - [ ] AUC a nivel de video: promedio de las probabilidades de los frames de cada `video_id`.
 - [ ] Accuracy, matriz de confusión.
@@ -144,7 +146,7 @@ def build_xception(pretrained=True):
 
 ### 4.1 Implementación
 ```python
-# models/losses.py
+# src/models/losses.py
 import torch, torch.nn as nn, torch.nn.functional as F
 
 class BinaryFocalLoss(nn.Module):
@@ -171,7 +173,7 @@ class BinaryFocalLoss(nn.Module):
         return loss
 ```
 
-> **Punto de diseño a decidir y registrar:** la fórmula de la propuesta incluye α. Con α fijo (p. ej. 0.25) y γ=0, la pérdida **no** es igual a BCE, sino BCE escalada por clase. Para que el control "γ=0 ⇒ BCE" sea exacto, usen `alpha=None` (o compárenlo contra BCE ponderada). Decidan una opción, úsenla en todas las corridas y regístrenla en `DECISIONS.md`.
+> **Punto de diseño a decidir y registrar:** la fórmula de la propuesta incluye α. Con α fijo (p. ej. 0.25) y γ=0, la pérdida **no** es igual a BCE, sino BCE escalada por clase. Para que el control "γ=0 ⇒ BCE" sea exacto, usen `alpha=None` (o compárenlo contra BCE ponderada). Decidan una opción, úsenla en todas las corridas y regístrenla en `docs/DECISIONS.md`.
 
 ### 4.2 Tests obligatorios (`tests/test_losses.py`)
 - [ ] **γ=0, α=None** coincide con `BCEWithLogitsLoss` (`torch.allclose`, tolerancia 1e-6) sobre logits aleatorios.
@@ -276,7 +278,7 @@ class BinaryFocalLoss(nn.Module):
 
 ## 10. Reproducibilidad (revisar antes de entregar)
 
-- [ ] `requirements.txt` con versiones fijadas (`torch`, `timm`, `scikit-learn`, `fvcore` o equivalente, `pytorch-grad-cam`, `facenet-pytorch`).
+- [ ] `environment/requirements.txt` con versiones fijadas (`torch`, `timm`, `scikit-learn`, `fvcore` o equivalente, `pytorch-grad-cam`, `facenet-pytorch`).
 - [ ] `README.md` con: cómo obtener los datos, cómo preprocesar, cómo entrenar, cómo evaluar y cómo reproducir cada tabla y figura.
 - [ ] Semilla y `commit hash` guardados con cada resultado.
 - [ ] Ningún dato de FF++ dentro del repositorio (licencia). Solo código, splits y resultados.

@@ -15,3 +15,4 @@ Registro de decisiones que afectan la reproducibilidad. Completar antes de las c
 ## Registro de cambios
 
 - 2026-10-21: se creó la estructura inicial del proyecto basada en E2.
+- 2026-10-21: se organizaron documentos en `docs/`, el código en `src/` y dependencias en `environment/`; notebooks destinados a Kaggle en `notebooks/kaggle/`.

@@ -1,5 +1,5 @@
 # Install a PyTorch build appropriate for the machine from https://pytorch.org/get-started/locally/.
-# Pin exact versions after validating the target runtime; see E2 section 10.
+# Pin exact versions after validating the target runtime; see docs/E2_Tareas_programacion.md, section 10.
 torch
 torchvision
 timm
