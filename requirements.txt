@@ -1,0 +1,16 @@
+# Install a PyTorch build appropriate for the machine from https://pytorch.org/get-started/locally/.
+# Pin exact versions after validating the target runtime; see E2 section 10.
+torch
+torchvision
+timm
+numpy
+Pillow
+opencv-python
+PyYAML
+scikit-learn
+matplotlib
+pandas
+facenet-pytorch
+fvcore
+pytorch-grad-cam
+pytest

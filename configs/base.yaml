@@ -1,0 +1,33 @@
+seed: 42
+
+paths:
+  data_root: data/ff++
+  processed_root: data/processed
+  results_root: results
+
+data:
+  image_size: 299
+  frames_per_video: 25
+  train_manipulations: [original, Deepfakes]
+  evaluation_manipulations: [original, Face2Face, FaceSwap, NeuralTextures]
+
+model:
+  name: legacy_xception
+  pretrained: true
+  num_classes: 1
+
+training:
+  batch_size: 32
+  epochs: 10
+  learning_rate: 0.0001
+  num_workers: 4
+  mixed_precision: true
+  optimizer: adam
+
+loss:
+  type: bce
+  gamma: 2.0
+  alpha: null
+
+evaluation:
+  threshold: 0.5

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+.env
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Local data and model artifacts (dataset license and repository size)
+data/
+datasets/
+*.pt
+*.pth
+*.ckpt
+
+# Generated experiment outputs; keep directory documentation tracked
+results/checkpoints/*
+!results/checkpoints/.gitkeep
+results/metrics/*
+!results/metrics/.gitkeep
+results/figures/*
+!results/figures/.gitkeep
+results/splits/*
+!results/splits/.gitkeep
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
