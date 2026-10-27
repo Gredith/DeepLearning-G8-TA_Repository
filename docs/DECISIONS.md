@@ -13,20 +13,9 @@ Cada entrada registra **qué** se decidió, **qué alternativas** había, **por 
 > - Fase A: completa para todo lo que no depende de datos (parámetros, FLOPs, RF, separable vs. estándar, latencia y memoria en CPU). Pendiente en Kaggle: latencia y memoria en GPU, activaciones sobre caras, ERF sobre caras y Grad-CAM.
 > - Fase B: pipeline de los notebooks probado de punta a punta con datos sintéticos. La primera corrida real BCE vs. Focal (γ=2) se ejecuta en Kaggle (notebook 03).
 
-## Resumen de decisiones
+## Índice de decisiones
 
-| Tema | Decisión | Estado |
-|---|---|---|
-| Python / PyTorch / CUDA | Imagen de Kaggle (GPU T4). Versiones exactas: `pip freeze` de la sesión, guardado junto a los resultados | Pendiente de registrar tras la corrida |
-| Detector facial | MTCNN de `facenet-pytorch`; seleccionar la cara de mayor área (D-03) | Decidido |
-| Arquitectura y pesos de Xception | `legacy_xception` de `timm`, pesos ImageNet (D-01) | Decidido |
-| Normalización de entrada | Media y desviación `[0.5, 0.5, 0.5]`, las de la [ficha de `legacy_xception` en `timm`](https://github.com/huggingface/pytorch-image-models/blob/main/timm/models/xception.py) y su `default_cfg` (D-02). La versión inicial de E2 indicaba ImageNet por error; `configs/base.yaml` ya usa 0.5 | Decidido |
-| Pérdida focal | `alpha=None` para que γ=0 coincida exactamente con BCE (D-07) | Decidido |
-| Métrica de checkpoint | Notebooks E2: AUC de validación por frame. Pipeline CLI: AUC de validación por video. Unificar en la Fase B completa | Diferencia registrada |
-| Extracción y recorte | Notebooks E2: 16 frames equiespaciados, PNG, margen 1.3×, 299×299 (D-03). Pipeline CLI: 25 frames, JPG. En ambos se registran y omiten frames sin cara | Decidido para E2 |
-| Splits oficiales | Pares `train.json`, `val.json`, `test.json` del repositorio [`ondyari/FaceForensics`](https://github.com/ondyari/FaceForensics/tree/master/dataset/splits), versionados en `results/splits/` con su sha256; IDs de origen disjuntos entre particiones (D-04) | Decidido |
-| Medición de FLOPs | Notebook 01: `torch.utils.flop_counter` (1 MAC = 2 FLOPs, solo conv/linear). Pipeline CLI: `fvcore`, que cuenta MACs | Decidido |
-| Licencia de FF++ | Nada de videos, frames, recortes ni script de descarga en el repo; celdas con caras marcadas y limpiadas antes de versionar (D-11) | Decidido |
+Las decisiones vigentes y su justificación se detallan en D-01–D-11. Esta sección se omite para evitar duplicar el resumen de cada entrada; para el estado de tareas y evidencia consulta [E2](E2_Tareas_programacion.md) y [E3](E3_Tareas_programacion.md).
 
 ---
 
