@@ -1,44 +1,35 @@
 # Estructura del proyecto
 
-El repositorio separa documentación, código, configuración, notebooks y resultados para que el trabajo local y las ejecuciones en Kaggle compartan una organización predecible. En el root solo deben permanecer `README.md` y `.gitignore`.
+El repositorio organiza por separado documentación, implementación, notebooks y resultados. La raíz se reserva para `README.md`, `.gitignore` y archivos de configuración de Git estrictamente necesarios.
 
 ## Directorios
 
-| Directorio | Propósito y contenido esperado |
+| Ruta | Propósito |
 |---|---|
-| `docs/` | Documentación humana: propuesta E1, tareas y criterios de E2, decisiones técnicas y esta guía. |
-| `environment/` | Dependencias reproducibles, incluyendo `requirements.txt`; fijar versiones antes de las corridas oficiales. |
-| `configs/` | Archivos YAML compartidos. `base.yaml` centraliza semillas, parámetros de entrenamiento y rutas relativas/configurables. |
-| `src/data_pipeline/` | Descarga y auditoría de splits oficiales de video, manifiesto de clips, extracción equiespaciada, recortes MTCNN precalculados y `Dataset` con la normalización de `configs/base.yaml` (0.5/0.5, la de `legacy_xception`). |
-| `src/kaggle_e2/` | Módulos planos que importan los notebooks E2 (`sys.path` apunta a esta carpeta): splits y `Dataset` de recortes, recorte MTCNN, pérdida focal, entrenamiento/evaluación, teardown y Grad-CAM. |
-| `src/models/` | Constructor de Xception y pérdidas (BCE/focal). |
-| `src/teardown/` | Scripts de análisis de arquitectura, FLOPs, campo receptivo, rendimiento y explicabilidad. |
-| `src/train.py`, `src/evaluate.py`, `src/evaluate_cross.py` | Interfaces de línea de comandos para entrenar, medir in-domain y generar la tabla cross-manipulation. Se invocan desde la raíz. |
-| `tests/` | Pruebas unitarias y de sanidad: pérdidas, formas, métricas y ausencia de fuga entre splits. |
-| `notebooks/kaggle/` | Notebooks E2 (`01_teardown_xception`, `02_preprocesamiento_ffpp`, `03_entrenamiento_bce_vs_focal`) y el explorador preliminar de FF++. Leen datos de `/kaggle/input/` y escriben salidas en `/kaggle/working/`. |
-| `tools/` | `build_nb01.py` y `build_nb02_03.py` generan los notebooks E2; `limpiar_caras.py` borra las salidas con caras antes de versionar. |
-| `results/splits/` | Manifiestos/listas de IDs por partición, sin datos personales o medios del dataset. |
-| `results/teardown/` | Tablas (CSV) y figuras de la Fase A sin imágenes del dataset. |
-| `results/runs/` | JSON por corrida de los notebooks E2: configuración, historial por época y métricas de test. |
-| `results/metrics/` | Métricas JSON/CSV y tablas de análisis. |
-| `results/figures/` | Figuras producidas por los análisis y notebooks. |
-| `results/checkpoints/` | Pesos de modelos. Pesados y excluidos de Git por defecto. |
+| `docs/` | Propuesta histórica E1, contexto general, decisiones, guía de ejecución y seguimiento de entregas E2/E3. |
+| `configs/` | Configuración compartida de rutas, datos y entrenamiento (`base.yaml`). |
+| `environment/` | Dependencias Python (`requirements.txt`). |
+| `src/data_pipeline/` | Splits, extracción de frames, recortes MTCNN y Dataset para el pipeline CLI. |
+| `src/kaggle_e2/` | Lógica modular importada por los notebooks de referencia E2: datos, preprocesamiento, entrenamiento, pérdidas, teardown y Grad-CAM. |
+| `src/models/` | Constructor de Xception y funciones de pérdida reutilizables. |
+| `src/teardown/` | Análisis de FLOPs/parámetros, campo receptivo, recursos y Grad-CAM del pipeline CLI. |
+| `src/` | Puntos de entrada CLI de entrenamiento y evaluación; ver [guía de ejecución](GUIA_EJECUCION.md). |
+| `notebooks/kaggle/` | Notebooks que orquestan preparación, entrenamiento y análisis en Kaggle; índice en [`notebooks/README.md`](../notebooks/README.md). |
+| `tests/` | Pruebas unitarias y controles de sanidad del código. |
+| `tools/` | Generadores de notebooks y utilidades de limpieza de salidas protegidas. |
+| `results/splits/` | Metadatos públicos de particiones e IDs fuente, sin medios del dataset. |
+| `results/teardown/` | Tablas y figuras numéricas del análisis de arquitectura. |
+| `results/runs/`, `results/metrics/` | Configuración, métricas e historiales livianos de corridas, cuando su inclusión esté permitida. |
+| `results/figures/` | Figuras permitidas; no guardar rostros derivados de FF++. |
+| `results/checkpoints/` | Checkpoints locales, normalmente pesados y excluidos de Git. |
 
-## Política para notebooks y Kaggle
+## Principio de organización
 
-- Mantener notebooks versionados bajo `notebooks/kaggle/`, no en la raíz.
-- Un notebook de exploración sirve para inspeccionar datos y documentar acceso; no debe convertirse en la fuente de verdad de la lógica de entrenamiento.
-- La lógica que se reutilice entre notebook, entrenamiento y evaluación debe migrar a `src/`.
-- La fuente pública de los JSON de split es [`ondyari/FaceForensics/dataset/splits`](https://github.com/ondyari/FaceForensics/tree/master/dataset/splits); el script descarga solo esos metadatos y guarda sus hashes. FF++ requiere aprobación de acceso y no se descarga desde el pipeline.
-- Registrar parámetros de corrida y hash del commit. Mantener las credenciales fuera del notebook y del repositorio.
-- GitHub y Kaggle son copias/versiones distintas salvo que se configure una sincronización explícita. Importar/actualizar el notebook en Kaggle y exportar/commit de vuelta es el flujo manual actual.
-- No almacenar FF++ en GitHub. En Kaggle usar un Dataset privado autorizado y tratar `/kaggle/input/` como solo lectura.
-- El script oficial de descarga de FF++ se sube a Kaggle como Dataset privado; no se versiona ni se enlaza su URL.
-- Las celdas que muestran caras llevan el tag `caras`. Antes de versionar un notebook ejecutado, correr `python tools/limpiar_caras.py` y comprobar con `--check` (D-11).
+Los notebooks son la entrada ejecutable y narrativa del flujo Kaggle. Importan de `src/` la lógica reutilizable para evitar duplicación y facilitar pruebas. El pipeline CLI permanece como ruta complementaria; los protocolos de ambas rutas están descritos en [DECISIONS](DECISIONS.md). Los comandos, rutas y pasos operativos están en la [guía de ejecución](GUIA_EJECUCION.md).
 
-## Reglas de mantenimiento
+## Mantenimiento
 
-1. No añadir archivos sueltos al root salvo README, `.gitignore` y archivos de configuración de repositorio estrictamente necesarios.
-2. Guardar datos crudos/procesados fuera de Git; los directorios locales `data/` y `datasets/` están ignorados.
-3. Mantener manifiestos y tablas pequeñas necesarios para E2; excluir checkpoints y figuras con imágenes derivadas del dataset.
-4. Actualizar enlaces y comandos en README si cambia la ubicación de un archivo.
+- No añadir archivos sueltos al root salvo README, `.gitignore` y configuración de repositorio necesaria.
+- Mantener los datos crudos/procesados, credenciales y checkpoints fuera de Git.
+- Versionar solo metadatos, código y resultados permitidos por los términos del dataset.
+- Actualizar los enlaces si cambia la ubicación de los documentos o scripts.

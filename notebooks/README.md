@@ -1,24 +1,21 @@
-# Notebooks
+# Notebooks de Kaggle
 
-Los notebooks pensados para Kaggle viven en [`kaggle/`](kaggle/):
+Los notebooks ejecutables están en [`kaggle/`](kaggle/):
 
-| Notebook | Qué hace |
+| Notebook | Función |
 |---|---|
-| `01_teardown_xception.ipynb` | Fase A: parámetros/FLOPs por flow, separable vs. estándar, RF/ERF, latencia y memoria; activaciones y Grad-CAM sobre caras (sección 5, Kaggle). |
-| `02_preprocesamiento_ffpp.ipynb` | Descarga FF++ c23 con el script oficial (Dataset privado) y recorta caras con MTCNN. |
-| `03_entrenamiento_bce_vs_focal.ipynb` | Fase B preliminar: BCE (γ=0) vs. Focal (γ=2), evaluación cross-manipulation y Grad-CAM. |
-| `robustez-de-detectores-de-deepfakes-ta-dl.ipynb` | Explorador preliminar de FF++ con una muestra pequeña; no ejecuta el protocolo experimental. |
+| `01_teardown_xception.ipynb` | Fase A: parámetros/FLOPs, campo receptivo y recursos; incluye secciones que requieren datos para activaciones/ERF/Grad-CAM. |
+| `02_preprocesamiento_ffpp.ipynb` | Preparación de FF++ c23 autorizado y recortes faciales. |
+| `03_entrenamiento_bce_vs_focal.ipynb` | Comparación BCE/Focal y evaluación in-domain/cross-manipulation. |
+| `robustez-de-detectores-de-deepfakes-ta-dl.ipynb` | Exploración preliminar; no sustituye el protocolo experimental. |
 
-Los notebooks E2 se generan con `tools/build_nb01.py` y `tools/build_nb02_03.py` e importan los módulos de `src/kaggle_e2/`. Orden y detalles en el [README principal](../README.md#ejecución-e2-en-kaggle-notebooks).
+Los notebooks `01`–`03` importan funciones de `src/kaggle_e2/`. Para orden, rutas de datos, dependencias y comandos, consulta la [guía de ejecución](../docs/GUIA_EJECUCION.md). El estado de evidencia está en [E2](../docs/E2_Tareas_programacion.md) y las decisiones experimentales en [DECISIONS](../docs/DECISIONS.md).
 
-**Licencia de FF++:** las celdas que muestran caras llevan el tag `caras`. Antes de versionar un notebook ejecutado, corre `python tools/limpiar_caras.py` desde la raíz y comprueba con `python tools/limpiar_caras.py --check`.
+Antes de versionar un notebook ejecutado, elimina las salidas con rostros y valida el archivo:
 
-Al crear notebooks de entrenamiento o análisis:
+```bash
+python tools/limpiar_caras.py
+python tools/limpiar_caras.py --check
+```
 
-- importa funciones desde `src/` o mantén celdas breves que llamen a esos módulos;
-- permite configurar rutas de Kaggle (`/kaggle/input/` para datos y `/kaggle/working/` para salidas);
-- instala `environment/requirements.txt` (o selecciona las versiones compatibles con la imagen Kaggle activa) antes de importar módulos del proyecto;
-- registra semilla, parámetros y hash del commit;
-- nunca guardes credenciales ni copies el dataset al repositorio.
-
-Kaggle mantiene versiones propias de los notebooks. Tras editar allí, descarga/exporta el `.ipynb` y actualiza esta carpeta con GitHub.
+Los datos privados y credenciales no se guardan en el notebook ni en Git. La sincronización entre Kaggle y GitHub es manual: exporta los cambios de Kaggle y actualiza el `.ipynb` del repositorio.

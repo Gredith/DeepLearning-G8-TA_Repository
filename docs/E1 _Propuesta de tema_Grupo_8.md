@@ -1,3 +1,5 @@
+> **Documento histórico:** propuesta entregada para E1 el 7 de octubre de 2026. Sus parámetros de datos y ejecución son los de esa versión; para el protocolo vigente consulta `DECISIONS.md` y no uses esta propuesta como guía operativa.
+
 **PONTIFICIA UNIVERSIDAD CATÓLICA DEL PERÚ**
 
 **FACULTAD DE CIENCIAS E INGENIERÍA**
