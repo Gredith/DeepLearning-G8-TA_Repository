@@ -30,6 +30,18 @@ La ruta de referencia para las salidas E2 son los notebooks y `src/kaggle_e2/`. 
 | **T8 · γ=1** | Opcional, no ejecutado. | Prioridad posterior a la comparación principal; ver E3. |
 | **T9 · c40/DFDC** | Opcional, no ejecutado. | Solo si acceso y presupuesto lo permiten; ver E3. |
 
+## Documento de evidencias E2
+
+Además del código/notebooks, E2 solicita un documento Word o Google Docs que describa el avance y enlace el repositorio. El documento debe resumir el procedimiento efectivamente realizado en cada notebook y acompañarlo con evidencia disponible; no presentar como ejecutada una celda que solo está implementada.
+
+- [ ] **Preparar y entregar el documento de evidencias E2** en Word o Google Docs usando la [estructura propuesta](E2_Evidencias_estructura.md); registrar aquí su enlace o ubicación.
+- [ ] Incluir el enlace al GitHub y la versión/commit revisado.
+- [ ] Resumir el propósito y procedimiento de los notebooks 01–03, las entradas/configuración y las salidas producidas.
+- [ ] Incluir tablas, capturas o métricas pertinentes, distinguiendo teardown CPU, prueba sintética y resultados experimentales con FF++.
+- [ ] Declarar ejecuciones pendientes, limitaciones y datos no disponibles.
+
+El documento Word/Google Docs es el reporte de avance; este Markdown mantiene su checklist y referencia. La [estructura propuesta](E2_Evidencias_estructura.md) sirve como plantilla, la guía de ejecución explica los comandos y el reporte presenta qué se hizo y qué evidencia se obtuvo.
+
 ## Criterio de aceptación E2
 
 - [ ] Pipeline de datos corrido con FF++ y controles visuales/conteos revisados.
@@ -37,6 +49,7 @@ La ruta de referencia para las salidas E2 son los notebooks y `src/kaggle_e2/`. 
 - [ ] Evaluación cross-manipulation con tabla de resultados y análisis de la hipótesis.
 - [x] Implementación de teardown CPU y código para pérdidas, Grad-CAM, evaluación y mediciones de arquitectura.
 - [ ] Secciones que requieren GPU/datos ejecutadas y evidencia versionada sin materiales protegidos.
+- [ ] Documento de evidencias E2 entregado (o entrega confirmada) con procedimiento de notebooks y enlace al repositorio.
 - [ ] Versiones del entorno registradas; notebooks que se presenten como reproducibles ejecutados de arriba abajo.
 
 El seguimiento de continuación, la demo y el informe final están en [E3](E3_Tareas_programacion.md). No se deben completar casillas experimentales solo porque exista su implementación.
