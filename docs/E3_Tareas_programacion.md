@@ -16,6 +16,7 @@
 | Fase B · entrenamiento | Hay prueba sintética S-01 registrada; no acredita resultados sobre FF++. | **Siguiente paso:** ejecutar notebook 02 con el Dataset privado autorizado, revisar conteos y recortes, y continuar con notebook 03 para BCE/γ=0 y Focal/γ=2. |
 | Fase C · generalización | La evaluación está implementada, pero no constan resultados entrenados con FF++. | Completar test in-domain y cross-manipulation con los mismos checkpoints y splits. |
 | Entorno y demo | El runtime real de Kaggle y sus versiones no están registrados en la documentación revisada. | Guardar GPU, `pip freeze`, semilla y commit con las corridas; verificar ejecución limpia de notebooks. |
+| Evidencias E2 | El documento Word/Google Docs de evidencias aún no existe. | Prepararlo y entregarlo; registrar su enlace en [E2](E2_Tareas_programacion.md). Se puede documentar ahora la evidencia existente y actualizarla tras las corridas FF++. |
 | Informe | Plan y estructura de tareas definidos; resultados experimentales principales pendientes. | Redactar resultados/conclusiones solo después de las corridas; si no concluyen, declarar la limitación y evidencia disponible. |
 
 ## Secuencia sugerida hasta la entrega
@@ -90,6 +91,7 @@ Una sesión/notebook de Kaggle que pueda ejecutarse con los datos autorizados y 
 - [ ] Ejecutar `python tools/limpiar_caras.py` y `python tools/limpiar_caras.py --check` antes de versionar notebooks ejecutados.
 - [ ] Revisar `.gitignore`: no incluir FF++, recortes, credenciales, checkpoints pesados ni salidas de Kaggle temporales.
 - [ ] Actualizar `README.md`, `docs/DECISIONS.md` y [E2](E2_Tareas_programacion.md) con estado final, comandos, decisiones y enlaces a artefactos versionados.
+- [ ] Elaborar y registrar el enlace al documento de evidencias E2; reutilizar su procedimiento y evidencia como insumo, sin duplicar el reporte dentro del informe final E3.
 
 ### Informe WAIMLAp (4–8 páginas)
 
