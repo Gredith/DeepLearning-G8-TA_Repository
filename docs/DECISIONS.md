@@ -129,7 +129,7 @@ Esto no prueba nada sobre el modelo entrenado. Es una predicción que la Fase C 
 | A-01 | 20/10 | Teardown, pesos ImageNet, CPU | Ver tabla de la Fase A | — (descriptivo) |
 | S-01 | 21/10 | Prueba de humo de `src/kaggle_e2` con recortes sintéticos (CPU, 96 px, 2 épocas) | Entrena, guarda checkpoint y evalúa AUC por frame y video en las 4 manipulaciones | — (validación de código, no es resultado) |
 | B-01 | 28/10 | `bce_s42`: γ=0, 100/30/70 pares, 16 frames, 6 épocas, T4 (mejor época 3) | AUC por video: DF 0.998 · F2F 0.686 · FS 0.246 · NT 0.826. Fáciles en la época 6: 98.7 % | — (línea base) |
-| B-02 | 28/10 | `focal_g2_s42`: γ=2, igual a B-01 (mejor época 4) | AUC por video: DF 0.999 · F2F 0.674 · FS 0.228 · NT 0.820. Fáciles en la época 6: 90.0 % | Predicciones 1 y 3 sí; **2 no**: Focal no mejora el cross-manipulation (Δ entre −0.006 y −0.024, una semilla) |
+| B-02 | 28/10 | `focal_g2_s42`: γ=2, igual a B-01 (mejor época 4) | AUC por video: DF 0.999 · F2F 0.674 · FS 0.228 · NT 0.820. Fáciles en la época 6: 90.0 % | Predicciones 1 y 3 sí; **2 no**: Focal no mejora el cross-manipulation (Δ AUC por video entre −0.006 y −0.018; por frame entre −0.016 y −0.024; una semilla) |
 
 Datos: `results/metrics/b01_bce_s42.json`, `b02_focal_g2_s42.json` y `comparacion_bce_vs_focal.csv`, transcritos de las salidas de texto de la versión 5 del notebook 02. Faltan 6 recortes de Deepfakes (3 en train y 3 en val; test completo): el nuevo manifiesto registra el motivo. En FaceSwap el AUC < 0.5 con ambas pérdidas: el detector puntúa los FaceSwap como más reales que los originales. Las etiquetas están bien (toda manipulación = 1), así que es un hallazgo que hay que explicar con Grad-CAM.
 

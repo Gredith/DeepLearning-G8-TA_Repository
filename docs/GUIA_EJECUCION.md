@@ -13,7 +13,11 @@ Orden (D-12):
 3. **`03_entrenamiento_bce_vs_focal.ipynb`**. Input: `ffpp-crops-g8`. Extrae el tar a `/tmp`, valida los conteos, entrena BCE y Focal γ=2 (~20 min cada una en una T4) y deja en el output `resultados/` (JSON por corrida, CSV, figuras sin caras, `entorno.json`, `pip_freeze.txt`), `checkpoints/` y `privado/` (Grad-CAM).
 4. **`01_teardown_xception.ipynb`**: las secciones 1–4 no usan datos. La sección 5 usa `ffpp-crops-g8` y, para Grad-CAM, el output del 03 como input.
 
-Para llevar al repo los números de una corrida nueva, copiar `resultados/runs/*.json` y `comparacion_bce_vs_focal.csv` a `results/metrics/`.
+5. **`04_barrido_gamma_semillas.ipynb`**. Inputs: `ffpp-crops-g8` y, opcionalmente, el output del 03 (reutiliza `bce_s42` y `focal_g2_s42`). ~10 min por corrida; si se corta, agregar su propio output como input y volver a guardar.
+6. **`06_diagnostico_gradcam.ipynb`**. Inputs: `ffpp-crops-g8` y el output del 04 (checkpoints y `preds_bce_s42.csv.gz`).
+7. **`05_analisis_final.ipynb`** (CPU). Inputs: outputs del 03/04. También corre en local con `results/metrics/`.
+
+`train.run` guarda, además del JSON, `preds_<corrida>.csv.gz` (probabilidad por frame de test: solo IDs y números), que usan el 05 (bootstrap) y el 06 (selección de casos). Para llevar al repo los números de una corrida nueva, copiar `resultados/runs/*.json` y `comparacion_bce_vs_focal.csv` a `results/metrics/`.
 
 ### Licencia y sincronización Kaggle → GitHub
 

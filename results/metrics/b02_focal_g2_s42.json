@@ -1,7 +1,7 @@
 {
  "run_name": "focal_g2_s42",
  "gamma": 2.0,
- "fuente": "Kaggle, GPU Tesla T4; outputs de texto de 02_preprocesamiento_ffpp.ipynb v5 (commit 4579655); transcrito, sin checkpoint en el repo",
+ "fuente": "Kaggle, GPU Tesla T4; outputs de texto de 02_preprocesamiento_ffpp.ipynb v5 (commit cf66d04); transcrito, sin checkpoint en el repo",
  "config": {
   "n_train_pairs": 100,
   "n_val_pairs": 30,

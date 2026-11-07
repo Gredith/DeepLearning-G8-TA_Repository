@@ -5,9 +5,33 @@
 **Objetivo:** entregar una demo reproducible y el informe final de 4–8 páginas con la plantilla WAIMLAp.
 **Plan de trabajo:** fases A (teardown), B (intervención BCE/Focal) y C (evaluación bajo cambios de manipulación/dataset), definidas en [CONTEXTO_PROYECTO.md](CONTEXTO_PROYECTO.md).
 
-> **Estado al 27/10/2026:** el código del flujo E2 está implementado en los notebooks `01`–`03` y `src/kaggle_e2/`. Hay resultados de teardown en CPU y una prueba sintética de extremo a extremo (S-01), pero la documentación y los artefactos revisados no muestran corridas de entrenamiento con FF++ ni métricas experimentales BCE/Focal. Por tanto, la prioridad inmediata es ejecutar y verificar el flujo principal con el acceso autorizado antes de dedicar tiempo a extensiones. Este plan queda como registro vivo hasta el E3; el histórico de E2 está en [E2_Tareas_programacion.md](E2_Tareas_programacion.md).
+> **Estado al 07/11/2026:** B-01 (BCE) y B-02 (Focal γ=2) se ejecutaron el 28/10 en Kaggle T4, dentro de la versión 5 del notebook 02. Las métricas están en `results/metrics/`: el AUC in-domain es casi igual en ambas pérdidas, Focal **no** mejora el cross-manipulation y el AUC en FaceSwap queda por debajo de 0.5. El 07/11 se reestructuraron los notebooks (D-12) y se limpió el historial público por licencia FF++ (D-11). La tabla de abajo, fechada al 27/10, queda como histórico; lo vigente está en **Pendientes al 07/11**. El histórico de E2 está en [E2_Tareas_programacion.md](E2_Tareas_programacion.md).
 
-## Estado actual y siguiente acción
+## Pendientes al 07/11 (entrega el 11/11)
+
+### Licencia FF++ y GitHub (urgente, fuera del código)
+- [ ] **Ticket a GitHub Support** ([support.github.com](https://support.github.com/request), categoría *Remove sensitive data / cached views*): pedir que borren los commits huérfanos y sus vistas en caché de `Gredith/DeepLearning-G8-TA_Repository`. Los SHA están en la conversación de trabajo del 07/11, no aquí: publicarlos en un repo público facilitaría llegar a las vistas en caché. Mencionar que el historial ya se reescribió y que ninguna rama los contiene.
+- [ ] Confirmar en Kaggle que son **privados**: los notebooks 01–03, el Dataset y notebook de `ronaldosegura` que contiene el script de descarga y el futuro Dataset `ffpp-crops-g8`.
+- [ ] Avisar a Diego y Ronaldo: borrar sus clones locales y volver a clonar (el historial cambió). No hacer push desde clones viejos, porque volverían a subir los commits con caras.
+- [ ] Revisar en GitHub → Actions que el workflow `licencia-ffpp` pase en el último commit.
+- [ ] (Opcional) Comprobar en uno o dos días que «Contributors» ya no muestre a Claude (es caché de GitHub).
+
+### Kaggle: volver a ejecutar con la nueva estructura (D-12)
+- [ ] En cada notebook de Kaggle, importar la versión nueva desde GitHub antes de la próxima *Save Version*, para que la versión vieja no pise la del repo.
+- [ ] 02 → **Save & Run All (Commit)** → *Output* → **New Dataset** `ffpp-crops-g8` (Private). Si falla, usar `CREAR_POR_API = True` (sección 5 del 02, Secret `KAGGLE_KEY`).
+- [ ] Revisar en la salida del 02 la auditoría de los 6 recortes faltantes de Deepfakes (3 en train y 3 en val): motivo (`frames_sin_cara` / `frames_no_leidos`).
+- [ ] 03 con input `ffpp-crops-g8`: verificar que reproduce B-01/B-02 (±0.005 de AUC), copiar `resultados/runs/*.json`, `comparacion_bce_vs_focal.csv` y `entorno.json` a `results/metrics/`.
+- [ ] Revisar las grillas Grad-CAM en `privado/` (solo en Kaggle) para explicar el AUC < 0.5 en FaceSwap; registrar los IDs de los videos, no las imágenes.
+- [ ] 01 en GPU: latencia y memoria en T4; sección 5 (ERF sobre caras) con `ffpp-crops-g8`.
+
+### Documentación y entregables
+- [ ] Recuperar o rehacer `E2_Informe_Evidencias_Grupo8.docx` y los cambios del 28/10 a E2/E3 (se perdieron de la copia local el 07/11 a las 12:50) y completarlo con B-01/B-02.
+- [ ] Actualizar [E2_Tareas_programacion.md](E2_Tareas_programacion.md) y `CONTEXTO_PROYECTO.md` (secciones 0, 7 y 8: ya hay resultados de entrenamiento).
+- [ ] Informe WAIMLAp (4–8 págs.): resultados de la tabla cross-manipulation, discusión del resultado nulo (hipótesis alternativa), FaceSwap < 0.5 y limitaciones (una semilla, subconjunto de 100 pares).
+- [ ] Extended abstract y póster: llenar la Tabla 1 y reemplazar el recuadro de Grad-CAM por una descripción o figura sin caras de FF++.
+- [ ] Opcional si sobra GPU: γ=1/5 o una segunda semilla (registrar antes la hipótesis en `DECISIONS.md`).
+
+## Estado al 27/10 (histórico)
 
 | Frente | Estado al 27/10 | Pendiente/decisión |
 |---|---|---|

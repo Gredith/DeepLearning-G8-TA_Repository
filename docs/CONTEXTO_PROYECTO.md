@@ -1,13 +1,13 @@
 # Contexto del proyecto · Grupo 8 · Deep Learning PUCP 2026-2
 
 > Documento de contexto para un asistente (Claude) que ayude a redactar o corregir entregables del proyecto: informe, extended abstract, póster o presentaciones.
-> Fuente de verdad: el repositorio del grupo (`docs/DECISIONS.md`, `docs/E2_Tareas_programacion.md`, `results/teardown/`). Estado al **21/10/2026**.
+> Fuente de verdad: el repositorio del grupo (`docs/DECISIONS.md`, `docs/E3_Tareas_programacion.md`, `results/teardown/`, `results/metrics/`). Estado al **07/11/2026**.
 
 ---
 
 ## 0. Reglas para el asistente
 
-1. **No inventes resultados.** Todavía **no hay** AUC, accuracy ni Grad-CAM de modelos entrenados con FF++. Las únicas cifras reales son las de la Fase A (sección 6). Si un documento pide resultados de entrenamiento, deja el espacio marcado como pendiente.
+1. **No inventes resultados.** Las únicas cifras reales son las de la Fase A (sección 6) y las de la primera corrida BCE vs. Focal γ = 2 (B-01/B-02, sección 6b; **una sola semilla**). Todavía **no hay** Grad-CAM, barrido de γ, otras semillas, intervalos de confianza ni mediciones en GPU. Si un documento pide esos resultados, deja el espacio marcado como pendiente.
 2. **Usa los valores de este documento, no los de la propuesta E1 original.** La E1 (7/10) decía «20–30 frames», «MTCNN o RetinaFace», «224×224 o 299×299», «T4/P100» y «200–300 videos por clase». **Todo eso quedó superado.** Los valores vigentes están en la sección 4.
 3. Los entregables al workshop (abstract y póster) se escriben **en inglés**. Los del curso (E1, E2, cuaderno de decisiones) se escriben **en español**.
 4. Escribe γ (gamma), no «y». Escribe «γ ∈ {0, 1, 2, 5}», nunca «γ ≤ {…}».
@@ -139,7 +139,24 @@ Esto **no prueba** nada sobre el modelo entrenado. Es una predicción que se pon
 
 ---
 
-## 7. Estado y pendientes (21/10/2026)
+## 6b. Resultados disponibles: Fase B/C, primera corrida (B-01/B-02)
+
+Kaggle T4, 28/10/2026, semilla 42, protocolo de la sección 4. Archivos: `results/metrics/b01_bce_s42.json`, `b02_focal_g2_s42.json` y `comparacion_bce_vs_focal.csv`.
+
+| AUC por video (frame) | Deepfakes (in-domain) | Face2Face | FaceSwap | NeuralTextures |
+|---|---|---|---|---|
+| BCE (γ = 0) | 0.998 (0.995) | 0.686 (0.699) | 0.246 (0.308) | 0.826 (0.813) |
+| Focal (γ = 2) | 0.999 (0.997) | 0.674 (0.675) | 0.228 (0.285) | 0.820 (0.797) |
+
+- **% de ejemplos fáciles (p_t > 0.9) en la época 6:** 98.7 % con BCE y 90.0 % con Focal; con Focal queda por debajo en todas las épocas tras el warm-up.
+- **Contraste con H-B1:** la predicción 1 (in-domain casi igual) se cumple; la **2 no** (Focal no mejora el cross-manipulation: Δ AUC por video entre −0.006 y −0.018); la 3 (el mecanismo) sí. Esto es compatible con la hipótesis alternativa: los difíciles comparten la huella del generador.
+- **FaceSwap < 0.5 con ambas pérdidas:** el detector puntúa los FaceSwap como *más reales* que los originales, de forma sistemática. Las etiquetas están bien (toda manipulación = 1). Hay que explicarlo (notebook 06).
+- **Datos:** train 6397 frames (3200 reales, 3197 falsos), val 1917, test completo. Faltan 6 recortes de Deepfakes (3 en train y 3 en val).
+- **Límites:** una semilla; las diferencias de ~0.01–0.02 no son concluyentes sin el barrido de semillas (notebook 04) y los IC por bootstrap (notebook 05).
+
+---
+
+## 7. Estado y pendientes (07/11/2026)
 
 **Hecho:**
 - Acceso a FF++ y muestra verificada en Kaggle.
@@ -147,23 +164,26 @@ Esto **no prueba** nada sobre el modelo entrenado. Es una predicción que se pon
 - Fase A completa en todo lo que no necesita datos (sección 6).
 - Pipeline de datos, entrenamiento y evaluación (BCE y focal; AUC por frame y por video) implementado y **probado de punta a punta con datos sintéticos**.
 - Tests de focal loss: γ = 0 ≡ BCE, fácil vs. difícil, sin NaN con logits ±50, gradientes finitos.
+- **B-01 `bce_s42` y B-02 `focal_g2_s42` ejecutados** (sección 6b) y tabla cross-manipulation con una semilla.
+- 07/11: notebooks reestructurados (D-12): el 02 entrega el Dataset privado `ffpp-crops-g8` y ningún notebook muestra caras de FF++. Historial público limpiado por licencia (D-11).
+- Notebooks nuevos (implementados, sin ejecutar con FF++): **04** barrido γ ∈ {0, 1, 2, 5} × semillas {42, 43, 44}; **05** análisis final con IC 95 % por bootstrap; **06** diagnóstico Grad-CAM por regiones. `train.run` ahora guarda las predicciones por frame de test (`preds_<corrida>.csv.gz`).
 
 **Pendiente:**
-- Corridas reales en Kaggle: **B-01 `bce_s42`** (γ = 0) y **B-02 `focal_g2_s42`** (γ = 2).
-- Tabla cross-manipulation; Grad-CAM BCE vs. focal; latencia y memoria en GPU T4; activaciones y ERF sobre caras.
-- Resto del barrido (γ = 1 y γ = 5), 2–3 semillas, c40 y DFDC, según el tiempo disponible.
-- Fijar versiones del entorno (`pip freeze` de Kaggle).
+- Volver a ejecutar 02 → Dataset `ffpp-crops-g8` → 03 en Kaggle, y luego 04, 06 y 05.
+- Grad-CAM BCE vs. focal y explicación de FaceSwap < 0.5; latencia y memoria en GPU T4; activaciones y ERF sobre caras.
+- Barrido γ = 1 y γ = 5 y semillas 43–44 (notebook 04); c40 y DFDC quedan como trabajo futuro.
+- Registrar el entorno (`entorno.json` y `pip_freeze.txt`, que generan los notebooks 03 y 04).
 
-**Tabla de resultados que hay que llenar** (entrenando en Deepfakes c23; AUC):
+**Tabla de resultados que hay que llenar** (entrenando en Deepfakes c23; AUC por video; por ahora una semilla, la 42). La versión final (media ± desviación entre semillas) la genera el notebook 05:
 
 | Pérdida | DF (in-domain) | F2F | FS | NT | c40 | DFDC |
 |---|---|---|---|---|---|---|
-| BCE (γ = 0) | – | – | – | – | – | – |
+| BCE (γ = 0) | 0.998 | 0.686 | 0.246 | 0.826 | – | – |
 | FL γ = 1 | – | – | – | – | – | – |
-| FL γ = 2 | – | – | – | – | – | – |
+| FL γ = 2 | 0.999 | 0.674 | 0.228 | 0.820 | – | – |
 | FL γ = 5 | – | – | – | – | – | – |
 
-Si hay una sola semilla, se indica. Con diferencias pequeñas no se sacan conclusiones.
+Si hay una sola semilla, se indica. Con diferencias pequeñas no se sacan conclusiones: se usa el IC 95 % del notebook 05.
 
 ---
 
@@ -172,10 +192,12 @@ Si hay una sola semilla, se indica. Con diferencias pequeñas no se sacan conclu
 | Archivo (`docs/`) | Qué es | Estado |
 |---|---|---|
 | `E1 _Propuesta de tema_Grupo_8.md` y `E1_DeepLearning_Grupo8.pdf` | Propuesta y presentación E1 (7/10) | Histórico; contiene valores ya superados (ver regla 2) |
-| `E2_Tareas_programacion.md` | Plan de tareas E2 con casillas | Vivo |
-| `DECISIONS.md` | Cuaderno de decisiones (D-01…D-11), hipótesis, registro de experimentos y uso de IA | Vivo, fuente de verdad |
-| `WAIMLAp2026_Extended_Abstract_Grupo8_v2.docx` | Extended abstract (EN, 2 págs.): Introduction, Methodology, Results and Discussion, Conclusions, References [1]–[8] | Alineado al 21/10; resultados de la Fase B pendientes |
-| `WAIMLAp2026_Poster_Grupo8_v2.pptx` | Póster A0 vertical (EN): Motivation, Objectives, Methodology (+ Fig. 1 pipeline), Results & Discussion (+ Table 1 y recuadro Grad-CAM), Conclusions, References, Acknowledgments, QR | Alineado al 21/10; faltan la Tabla 1, la figura Grad-CAM y el QR |
+| `E2_Tareas_programacion.md` | Registro de tareas E2 | Histórico |
+| `E3_Tareas_programacion.md` | Plan y pendientes hasta el E3 (11/11) | Vivo |
+| `DECISIONS.md` | Cuaderno de decisiones (D-01…D-12), hipótesis, registro de experimentos y uso de IA | Vivo, fuente de verdad |
+| `WAIMLAp2026_Extended_Abstract_Grupo8_v2.docx` (Drive del grupo) | Extended abstract (EN, 2 págs.): Introduction, Methodology, Results and Discussion, Conclusions, References [1]–[8] | Alineado al 21/10; falta incorporar B-01/B-02 y los resultados finales |
+| `WAIMLAp2026_Poster_Grupo8_v2.pptx` (Drive del grupo) | Póster A0 vertical (EN): Motivation, Objectives, Methodology (+ Fig. 1 pipeline), Results & Discussion (+ Table 1 y recuadro Grad-CAM), Conclusions, References, Acknowledgments, QR | Alineado al 21/10; faltan la Tabla 1, el recuadro Grad-CAM (sin caras de FF++: usar las métricas por región del notebook 06) y el QR |
+| Informe final E3 (Drive del grupo) | 4–8 págs., plantilla WAIMLAp | No se versiona en GitHub |
 
 **Take-home del póster:** «In-domain AUC says little about the real world — measure the drop, then explain it.»
 
@@ -191,7 +213,7 @@ Si hay una sola semilla, se indica. Con diferencias pequeñas no se sacan conclu
 
 ## 9. Uso responsable
 
-- **Datos:** rostros de personas reales, solo para investigación académica. No se redistribuyen, no se intenta identificar a nadie y no se generan deepfakes nuevos. FF++ va en un Kaggle Dataset privado. En el repositorio público solo hay código, splits (metadatos públicos) y tablas numéricas, sin figuras con caras.
+- **Datos:** rostros de personas reales, solo para investigación académica. No se redistribuyen, no se intenta identificar a nadie y no se generan deepfakes nuevos. FF++ y los recortes van en Kaggle Datasets privados. En el repositorio público solo hay código, splits (metadatos públicos) y tablas numéricas, sin figuras con caras. **Tampoco se usan figuras con caras de FF++ en el informe, el abstract ni el póster** (son redistribución): para Grad-CAM se reportan métricas por región o esquemas propios.
 - **IA:** se usó Claude para explorar temas, redactar, generar código (teardown, pipeline, entrenamiento, focal loss, Grad-CAM) y revisar el avance. El grupo revisó y decidió cada punto. El detalle está en `DECISIONS.md`.
 
 ---
