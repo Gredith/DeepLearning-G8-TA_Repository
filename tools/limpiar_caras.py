@@ -5,7 +5,7 @@ de descarga. Kaggle sincroniza los notebooks con GitHub **con sus salidas**, as�
 segunda barrera (la primera es que los notebooks no muestran caras: ver `kaggle_io.save_private`).
 
 Se borran:
-1. Las salidas de celdas con el tag `caras`.
+1. Las imágenes y el HTML de celdas con el tag `caras` (su texto, p. ej. «figura privada guardada…», se conserva).
 2. Las imágenes (`image/*`) de celdas cuyo código toca recortes, frames o Grad-CAM.
 3. Las salidas de texto que contienen el log o la ruta del script de descarga de FF++.
 
@@ -56,14 +56,13 @@ def limpiar_notebook(notebook: dict) -> tuple[dict, list[str]]:
         if not outputs:
             continue
         fuente = "".join(cell.get("source", []))
-        if _tiene_tag(cell):
-            cell["outputs"], cell["execution_count"] = [], None
-            quitado.append(f"celda {index}: salidas de una celda con tag '{TAG}'")
-            continue
-        con_caras = bool(CODIGO_CON_CARAS.search(fuente))
+        tag = _tiene_tag(cell)
+        con_caras = tag or bool(CODIGO_CON_CARAS.search(fuente))
         nuevas = []
         for out in outputs:
-            if con_caras and _es_imagen(out):
+            if tag and "text/html" in out.get("data", {}):
+                quitado.append(f"celda {index}: HTML en una celda con tag '{TAG}'")
+            elif con_caras and _es_imagen(out):
                 quitado.append(f"celda {index}: imagen generada a partir de recortes/frames/Grad-CAM")
             elif TEXTO_PROHIBIDO.search(_texto(out)):
                 quitado.append(f"celda {index}: log o ruta del script de descarga de FF++")
