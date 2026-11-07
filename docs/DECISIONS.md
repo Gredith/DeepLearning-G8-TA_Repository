@@ -11,11 +11,11 @@ Cada entrada registra **qué** se decidió, **qué alternativas** había, **por 
 >   - **Notebooks E2** (`notebooks/kaggle/01–03` + `src/kaggle_e2/`): son los que producen los resultados de este avance (subconjunto por presupuesto, D-05).
 >   - **Pipeline CLI** (`src/data_pipeline/`, `src/train.py`, `src/evaluate*.py`, `src/teardown/`): pipeline completo con manifiestos y procedencia, para las corridas de la Fase B completa.
 > - Fase A: completa para todo lo que no depende de datos (parámetros, FLOPs, RF, separable vs. estándar, latencia y memoria en CPU). Pendiente en Kaggle: latencia y memoria en GPU, activaciones sobre caras, ERF sobre caras y Grad-CAM.
-> - Fase B: pipeline de los notebooks probado de punta a punta con datos sintéticos. La primera corrida real BCE vs. Focal (γ=2) se ejecuta en Kaggle (notebook 03).
+> - Fase B: primera corrida real BCE vs. Focal (γ=2) ejecutada en Kaggle T4 el 28/10 (B-01, B-02; `results/metrics/`). Focal no mejora la robustez cross-manipulation.
 
 ## Índice de decisiones
 
-Las decisiones vigentes y su justificación se detallan en D-01–D-11. Esta sección se omite para evitar duplicar el resumen de cada entrada; para el estado de tareas y evidencia consulta [E2](E2_Tareas_programacion.md) y [E3](E3_Tareas_programacion.md).
+Las decisiones vigentes y su justificación se detallan en D-01–D-12. Esta sección se omite para evitar duplicar el resumen de cada entrada; para el estado de tareas y evidencia consulta [E2](E2_Tareas_programacion.md) y [E3](E3_Tareas_programacion.md).
 
 ---
 
@@ -73,6 +73,15 @@ Las decisiones vigentes y su justificación se detallan en D-01–D-11. Esta sec
 - **Por qué:** los términos de uso de FF++ no permiten redistribuir el dataset ni el script de descarga.
 - **Incidente:** el 21/10 se detectó que el notebook explorador tenía dos figuras con frames de FF++ y la URL del script. Se eliminaron y se reescribió el historial de Git para quitarlas también de los commits anteriores.
 - **IA:** el asistente detectó el problema durante una revisión del avance y propuso el mecanismo de tags; el grupo decidió reescribir el historial.
+- **Segundo incidente (detectado el 07/11):** la integración Kaggle → GitHub («Save Version») subió las versiones 2–5 del notebook 02 *con sus salidas*: la grilla de recortes, cuatro grillas Grad-CAM con caras y el log del script de descarga (con su ruta y la URL de los términos). El tag `caras` no bastaba, porque esa sincronización no pasa por `limpiar_caras.py`. Se corrigió con D-12 (los notebooks ya no muestran caras), se amplió `limpiar_caras.py` (imágenes de celdas que leen recortes y log de descarga), se añadió el workflow `.github/workflows/licencia-ffpp.yml` y se reescribió de nuevo el historial.
+
+### D-12 · Notebooks de Kaggle: un Dataset de recortes empaquetado y salidas sin caras
+- **Problema:** crear un Dataset desde el output del 02 fallaba en la interfaz de Kaggle (`Unexpected token '<' … is not valid JSON`). El output tenía ~19.5 k PNG sueltos, además del repo clonado y los videos. Para avanzar se copió el código del 03 al final del 02.
+- **Qué:**
+  - El 02 descarga, recorta y **borra los videos de una categoría a la vez** (en `/tmp`), y deja como output solo `crops.tar` (sin compresión), `manifest.csv` (con los motivos de descarte por video) y `crops_meta.json`. Ese output se convierte en el Dataset **privado** `ffpp-crops-g8` desde una versión guardada (Save & Run All). Si la interfaz falla, hay un plan B por API dentro del notebook.
+  - El 03 y la sección 5 del 01 encuentran `crops.tar` en sus inputs, lo extraen a `/tmp` y comparan los conteos con el manifiesto (`src/kaggle_e2/kaggle_io.py`).
+  - Ninguna celda muestra caras: `kaggle_io.save_private` guarda la figura en `/kaggle/working/privado/` y la cierra sin mostrarla. El log de descarga va a `privado/descarga.log`. Así, lo que Kaggle sincroniza con GitHub sale limpio por construcción.
+- **Por qué:** un archivo grande se maneja mejor que miles de archivos chicos, y separar el 02 del 03 permite volver a entrenar sin repetir ~2 h de descarga y recorte. La protección de licencia no puede depender de un paso manual cuando la sincronización es automática.
 
 ---
 
@@ -119,8 +128,10 @@ Esto no prueba nada sobre el modelo entrenado. Es una predicción que la Fase C 
 |---|---|---|---|---|
 | A-01 | 20/10 | Teardown, pesos ImageNet, CPU | Ver tabla de la Fase A | — (descriptivo) |
 | S-01 | 21/10 | Prueba de humo de `src/kaggle_e2` con recortes sintéticos (CPU, 96 px, 2 épocas) | Entrena, guarda checkpoint y evalúa AUC por frame y video en las 4 manipulaciones | — (validación de código, no es resultado) |
-| B-01 | *pendiente* | `bce_s42`: γ=0, 100/30/70 pares, 16 frames, 6 épocas | | |
-| B-02 | *pendiente* | `focal_g2_s42`: γ=2, igual a B-01 | | |
+| B-01 | 28/10 | `bce_s42`: γ=0, 100/30/70 pares, 16 frames, 6 épocas, T4 (mejor época 3) | AUC por video: DF 0.998 · F2F 0.686 · FS 0.246 · NT 0.826. Fáciles en la época 6: 98.7 % | — (línea base) |
+| B-02 | 28/10 | `focal_g2_s42`: γ=2, igual a B-01 (mejor época 4) | AUC por video: DF 0.999 · F2F 0.674 · FS 0.228 · NT 0.820. Fáciles en la época 6: 90.0 % | Predicciones 1 y 3 sí; **2 no**: Focal no mejora el cross-manipulation (Δ entre −0.006 y −0.024, una semilla) |
+
+Datos: `results/metrics/b01_bce_s42.json`, `b02_focal_g2_s42.json` y `comparacion_bce_vs_focal.csv`, transcritos de las salidas de texto de la versión 5 del notebook 02. Faltan 6 recortes de Deepfakes (3 en train y 3 en val; test completo): el nuevo manifiesto registra el motivo. En FaceSwap el AUC < 0.5 con ambas pérdidas: el detector puntúa los FaceSwap como más reales que los originales. Las etiquetas están bien (toda manipulación = 1), así que es un hallazgo que hay que explicar con Grad-CAM.
 
 ---
 
@@ -140,4 +151,5 @@ Esto no prueba nada sobre el modelo entrenado. Es una predicción que la Fase C 
 - 2026-10-21: se organizaron documentos en `docs/`, el código en `src/` y dependencias en `environment/`; notebooks destinados a Kaggle en `notebooks/kaggle/`.
 - 2026-10-21: se eligió MTCNN como detector inicial y se definió el formato CSV de manifiestos para el pipeline T1.
 - 2026-10-21: se quitaron del notebook explorador las figuras con frames de FF++ y la URL del script de descarga, también del historial (D-11); se añadió `tools/limpiar_caras.py`.
+- 2026-11-07: reestructuración de los notebooks (D-12): Dataset `ffpp-crops-g8` empaquetado y salidas sin caras; segundo incidente de licencia y nueva reescritura del historial (D-11); resultados B-01/B-02 registrados.
 - 2026-10-21: se integraron los notebooks E2 (`notebooks/kaggle/01–03`, `src/kaggle_e2/`, `results/teardown/`) y este cuaderno; la normalización pasó a 0.5 (D-02).

@@ -1,0 +1,9 @@
+perdida,test,auc_frame,auc_video,caida_rel_frame_pct,caida_rel_video_pct
+BCE (γ=0),Deepfakes,0.9949,0.9981,0.0,0.0
+BCE (γ=0),Face2Face,0.6986,0.6857,29.78,31.3
+BCE (γ=0),FaceSwap,0.3083,0.2459,69.01,75.36
+BCE (γ=0),NeuralTextures,0.8131,0.8261,18.27,17.23
+Focal (γ=2),Deepfakes,0.9968,0.9993,0.0,0.0
+Focal (γ=2),Face2Face,0.6751,0.6742,32.27,32.53
+Focal (γ=2),FaceSwap,0.2845,0.2275,71.46,77.23
+Focal (γ=2),NeuralTextures,0.7967,0.8204,20.07,17.9

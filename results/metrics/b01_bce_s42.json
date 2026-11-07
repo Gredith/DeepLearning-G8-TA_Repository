@@ -1,0 +1,110 @@
+{
+ "run_name": "bce_s42",
+ "gamma": 0.0,
+ "fuente": "Kaggle, GPU Tesla T4; outputs de texto de 02_preprocesamiento_ffpp.ipynb v5 (commit 4579655); transcrito, sin checkpoint en el repo",
+ "config": {
+  "n_train_pairs": 100,
+  "n_val_pairs": 30,
+  "n_test_pairs": null,
+  "frames_per_video": 16,
+  "epochs": 6,
+  "warmup_epochs": 1,
+  "batch_size": 32,
+  "lr": 0.0002,
+  "seed": 42,
+  "alpha": null,
+  "img_size": 299
+ },
+ "data": {
+  "train": {
+   "frames": 6397,
+   "frames_real": 3200,
+   "frames_fake": 3197,
+   "videos": 400,
+   "videos_faltantes": 0
+  },
+  "val": {
+   "frames": 1917,
+   "frames_real": 960,
+   "frames_fake": 957,
+   "videos": 120,
+   "videos_faltantes": 0
+  }
+ },
+ "history": [
+  {
+   "epoch": 1,
+   "fase": "cabeza",
+   "train_loss": 0.6638,
+   "train_pct_faciles": 0.0,
+   "val_auc_frame": 0.8136,
+   "val_auc_video": 0.8619,
+   "seg": 38
+  },
+  {
+   "epoch": 2,
+   "fase": "red completa",
+   "train_loss": 0.1028,
+   "train_pct_faciles": 84.2,
+   "val_auc_frame": 0.9977,
+   "val_auc_video": 1.0,
+   "seg": 99
+  },
+  {
+   "epoch": 3,
+   "fase": "red completa",
+   "train_loss": 0.0209,
+   "train_pct_faciles": 97.4,
+   "val_auc_frame": 0.9986,
+   "val_auc_video": 1.0,
+   "seg": 84
+  },
+  {
+   "epoch": 4,
+   "fase": "red completa",
+   "train_loss": 0.0235,
+   "train_pct_faciles": 97.4,
+   "val_auc_frame": 0.9982,
+   "val_auc_video": 1.0,
+   "seg": 84
+  },
+  {
+   "epoch": 5,
+   "fase": "red completa",
+   "train_loss": 0.0092,
+   "train_pct_faciles": 99.0,
+   "val_auc_frame": 0.9982,
+   "val_auc_video": 1.0,
+   "seg": 84
+  },
+  {
+   "epoch": 6,
+   "fase": "red completa",
+   "train_loss": 0.0117,
+   "train_pct_faciles": 98.7,
+   "val_auc_frame": 0.9977,
+   "val_auc_video": 0.9994,
+   "seg": 83
+  }
+ ],
+ "best_epoch": 3,
+ "best_val_auc_frame": 0.9986,
+ "test": {
+  "Deepfakes": {
+   "auc_frame": 0.9949,
+   "auc_video": 0.9981
+  },
+  "Face2Face": {
+   "auc_frame": 0.6986,
+   "auc_video": 0.6857
+  },
+  "FaceSwap": {
+   "auc_frame": 0.3083,
+   "auc_video": 0.2459
+  },
+  "NeuralTextures": {
+   "auc_frame": 0.8131,
+   "auc_video": 0.8261
+  }
+ }
+}

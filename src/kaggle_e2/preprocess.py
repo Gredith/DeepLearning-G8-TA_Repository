@@ -66,8 +66,15 @@ def square_crop(rgb, box, scale=1.3, size=299):
     return cv2.resize(crop, (size, size), interpolation=cv2.INTER_AREA) if crop.size else None
 
 
-def process_video(src, dst_dir, n_frames=16, size=299, device="cpu"):
-    """Extrae n_frames equiespaciados y guarda los recortes. Devuelve # recortes guardados."""
+def process_video(src, dst_dir, n_frames=16, size=299, device="cpu", stats=None):
+    """Extrae n_frames equiespaciados y guarda los recortes. Devuelve # recortes guardados.
+
+    Si `stats` es un dict, acumula los motivos de descarte: `no_leidos` (cv2 no pudo leer el frame),
+    `sin_cara` (MTCNN no detectó cara) y `recorte_vacio`.
+    """
+    stats = {} if stats is None else stats
+    for k in ("no_leidos", "sin_cara", "recorte_vacio"):
+        stats.setdefault(k, 0)
     dst_dir = Path(dst_dir)
     if dst_dir.exists() and len(list(dst_dir.glob("*.png"))) >= n_frames:
         return len(list(dst_dir.glob("*.png")))
@@ -82,13 +89,16 @@ def process_video(src, dst_dir, n_frames=16, size=299, device="cpu"):
         cap.set(cv2.CAP_PROP_POS_FRAMES, int(i))
         ok, bgr = cap.read()
         if not ok:
+            stats["no_leidos"] += 1
             continue
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         box = detect_largest_face(rgb, device)
         if box is None:
+            stats["sin_cara"] += 1
             continue
         crop = square_crop(rgb, box, size=size)
         if crop is None:
+            stats["recorte_vacio"] += 1
             continue
         cv2.imwrite(str(dst_dir / f"{i:05d}.png"), cv2.cvtColor(crop, cv2.COLOR_RGB2BGR))
         saved += 1
@@ -96,15 +106,18 @@ def process_video(src, dst_dir, n_frames=16, size=299, device="cpu"):
     return saved
 
 
-def process_all(ffpp_root, crops_dir, video_ids_by_cat, n_frames=16, comp="c23", device="cpu"):
+def process_all(ffpp_root, crops_dir, video_ids_by_cat, n_frames=16, comp="c23", device="cpu", progress=True):
     """video_ids_by_cat: {categoria: [ids]}. Devuelve lista de dicts (manifiesto)."""
     from tqdm.auto import tqdm
     rows = []
     for cat, ids in video_ids_by_cat.items():
-        for vid in tqdm(ids, desc=cat):
+        for vid in tqdm(ids, desc=cat, disable=not progress):
             src = video_path(ffpp_root, cat, vid, comp)
-            n = process_video(src, Path(crops_dir) / cat / vid, n_frames, device=device) if src.exists() else 0
-            rows.append({"categoria": cat, "video": vid, "existe_video": src.exists(), "recortes": n})
+            st = {}
+            n = process_video(src, Path(crops_dir) / cat / vid, n_frames, device=device, stats=st) if src.exists() else 0
+            rows.append({"categoria": cat, "video": vid, "existe_video": src.exists(), "recortes": n,
+                         "frames_no_leidos": st.get("no_leidos", 0), "frames_sin_cara": st.get("sin_cara", 0),
+                         "recortes_vacios": st.get("recorte_vacio", 0)})
     return rows
 
 

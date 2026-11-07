@@ -127,15 +127,17 @@ if DEVICE == "cuda":
 mem = pd.Series(mem).round(1); mem.to_csv(OUT / f"memoria_{DEVICE}.csv"); mem'''),
 md("""**Lectura.** Los pesos ocupan ~80 MB, pero las activaciones que el entrenamiento guarda para el backward son ~3.5× más por imagen (~280 MB en fp32 como cota). Por eso el tamaño de batch en la T4 (16 GB) está limitado por las activaciones y no por los pesos, y por eso entrenamos con precisión mixta (AMP). La mayor parte de esa memoria la generan las capas de alta resolución del stem y del entry flow, es decir, las mismas que dominan el costo por parámetro."""),
 md("""## 5. Activaciones intermedias, ERF sobre caras y Grad-CAM *(Kaggle)*
-Requiere `crops/` generado por `02_preprocesamiento_ffpp.ipynb` y, para Grad-CAM, un checkpoint de `03_entrenamiento_bce_vs_focal.ipynb`. Si no existen, la celda se salta.
+Requiere como input el Dataset privado `ffpp-crops-g8` (output del 02) y, para Grad-CAM, el output del 03 con los checkpoints. Si no existen, la celda se salta.
 
-> **Licencia:** esta celda muestra caras de FF++ (tag `caras`). Antes de subir el notebook ejecutado a GitHub, correr `python tools/limpiar_caras.py`. Las figuras se guardan en archivos ignorados por Git; las tablas numéricas (`erf_sobre_caras.csv`) sí se versionan."""),
+> **Licencia:** Kaggle sube este notebook a GitHub con sus salidas, así que las figuras con caras **no se muestran**: se guardan en `privado/` (output privado de Kaggle). La tabla numérica `erf_sobre_caras.csv` sí se muestra y se versiona."""),
 caras('''import glob
 from PIL import Image
-CROPS = Path(os.environ.get("CROPS_DIR", "/kaggle/working/crops"))
-if not CROPS.exists():
-    print("No hay recortes en", CROPS, "→ ejecutar en Kaggle después del preprocesamiento.")
-else:
+import kaggle_io as K
+try:
+    CROPS = K.find_crops()   # Dataset privado ffpp-crops-g8 (crops.tar) como input
+except FileNotFoundError as e:
+    CROPS = None; print(e)
+if CROPS is not None:
     import gradcam, data as D
     tf = D.eval_transform(299)
     pick = {"real": sorted(glob.glob(str(CROPS / "original" / "*" / "*.png")))[:4],
@@ -150,14 +152,15 @@ else:
         for c, n in enumerate(lay):
             axes[row, c + 1].imshow(acts[n][0], cmap="magma"); axes[row, c + 1].set_title(n, loc="left")
     for a in axes.flat: a.axis("off")
-    plt.tight_layout(); plt.savefig(OUT / "fig_activaciones_real_vs_fake.png"); plt.show()
+    plt.tight_layout(); K.save_private(fig, "fig_activaciones_real_vs_fake.png")   # caras: no se muestra
     # 5b. ERF sobre caras reales
     _, erf_faces = T.effective_receptive_field(model.cpu(), ["block3", "block7", "block11", "conv4"], inputs=torch.cat(list(imgs.values())))
-    erf_faces.to_csv(OUT / "erf_sobre_caras.csv", index=False); display(erf_faces)
+    erf_faces.to_csv(OUT / "erf_sobre_caras.csv", index=False); display(erf_faces)   # tabla numérica: sí se muestra
     # 5c. Grad-CAM con el checkpoint entrenado (si existe)
-    for ck in sorted((ROOT / "results" / "checkpoints").glob("*.pt")):
+    cks = sorted(Path("/kaggle/input").rglob("*_s42.pt")) if K.KAGGLE else sorted((ROOT / "results" / "checkpoints").glob("*.pt"))
+    for ck in cks:   # checkpoints del 03: agregar su output como input
         m = T.build_model(False, 1); m.load_state_dict(torch.load(ck, map_location="cpu")["model"])
-        fig = gradcam.grid(m, imgs, title=ck.stem); fig.savefig(OUT / f"fig_gradcam_{ck.stem}.png"); plt.show()'''),
+        K.save_private(gradcam.grid(m, imgs, title=ck.stem), f"fig_gradcam_{ck.stem}.png")'''),
 md("""## Resumen para el cuaderno de decisiones
 | Medición | Resultado | Implicación |
 |---|---|---|
