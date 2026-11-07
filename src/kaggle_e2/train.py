@@ -160,13 +160,17 @@ def run(cfg: Config, device=None, verbose=True):
 
     # Evaluación final con el mejor checkpoint: in-domain y cross-manipulation (Fase C)
     model.load_state_dict(torch.load(best_path, map_location=device)["model"])
-    test = {}
+    test, pred_rows = {}, []
     for m in cfg.test_methods:
         items, miss = D.build_items(cfg.crops_dir, te_pairs, [m], max_frames=cfg.frames_per_video)
         if not any(y == 1 for _, y, _ in items):
             test[m] = {"nota": "sin videos de test descargados"}
             continue
-        test[m] = metrics(*predict(model, _loader(items, False, cfg), device)) | {"videos_faltantes": miss}
+        probs, labels, vkeys = predict(model, _loader(items, False, cfg), device)
+        test[m] = metrics(probs, labels, vkeys) | {"videos_faltantes": miss}
+        # predicciones por frame (solo IDs y probabilidades, sin imágenes): permiten IC por bootstrap y Grad-CAM emparejado
+        pred_rows += [{"test": m, "video": v, "frame": Path(p).stem, "label": int(l), "p_fake": float(q)}
+                      for (p, _, _), v, l, q in zip(items, vkeys, labels, probs)]
         if verbose:
             print(f"  test {m:15s} AUC frame={test[m].get('auc_frame', float('nan')):.4f} "
                   f"video={test[m].get('auc_video', float('nan')):.4f}")
@@ -174,4 +178,8 @@ def run(cfg: Config, device=None, verbose=True):
               "best_val_auc_frame": best_auc, "device": device,
               "gpu": torch.cuda.get_device_name(0) if device == "cuda" else None}
     json.dump(result, open(out_dir / f"{cfg.run_name}.json", "w"), indent=1, default=str)
+    if pred_rows:
+        import pandas as pd
+        pd.DataFrame(pred_rows).to_csv(out_dir / f"preds_{cfg.run_name}.csv.gz", index=False)
+        result["preds_path"] = str(out_dir / f"preds_{cfg.run_name}.csv.gz")
     return result
