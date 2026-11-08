@@ -208,7 +208,7 @@ for i, (name, col) in enumerate(zip(runs, S.SERIES)):
     for xi, vi in zip(x, v): ax.text(xi + (i - 0.5) * w, vi + 0.01, f"{vi:.3f}", ha="center", fontsize=8, color=S.MUTED)
 ax.axhline(0.5, color=S.MUTED, lw=1, ls="--"); ax.text(3.45, 0.51, "azar", color=S.MUTED, fontsize=8, ha="right")
 ax.set_xticks(x, ["Deepfakes\\n(in-domain)", "FaceSwap", "Face2Face", "NeuralTextures"])
-ax.set_ylim(0.4, 1.05); ax.set_ylabel("AUC (frame)"); ax.grid(axis="x", visible=False)
+ax.set_ylim(0, 1.05); ax.set_ylabel("AUC (frame)"); ax.grid(axis="x", visible=False)
 ax.set_title("Entrenado solo en Deepfakes: AUC por manipulación de test", loc="left")
 ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2)
 plt.tight_layout(); plt.savefig(OUT / "fig_auc_cross_manipulation.png", dpi=200); plt.show()'''),
@@ -235,18 +235,18 @@ for cat, vid in [("real", a), ("Deepfakes", f"{a}_{b}"), ("FaceSwap", f"{a}_{b}"
 for run_name in ["bce_s42", "focal_g2_s42"]:
     m = T.build_model(False, 1); m.load_state_dict(torch.load(CKPT / f"{run_name}.pt", map_location="cpu")["model"])
     K.save_private(gradcam.grid(m, pick, title=run_name), f"fig_gradcam_{run_name}.png")'''),
-md("""## 5. Contraste con la hipótesis
-Valores de la primera corrida (B-01 y B-02, semilla 42, Kaggle T4, 28/10/2026; `results/metrics/`). Si se vuelve a correr, actualizar con la tabla de la sección 3.
+md("""### 5. Contraste con la hipótesis
+Valores de la corrida oficial (notebook 03 v3, semilla 42, Kaggle T4, 07/11/2026; `results/metrics/e3_*.json`). La primera corrida (v5 del 02, 28/10) se conserva en `results/metrics/b0*_*.json`.
 
 | Predicción | Resultado observado | ¿Se cumplió? |
 |---|---|---|
-| 1. AUC in-domain casi igual | Deepfakes, AUC por video: 0.9981 (BCE) vs. 0.9993 (Focal); Δ = +0.0012 | Sí |
-| 2. Mejora cross-manip., más en FaceSwap que en NeuralTextures | AUC por video con Focal menor en Face2Face (0.674 vs. 0.686), FaceSwap (0.228 vs. 0.246) y NeuralTextures (0.820 vs. 0.826) | No |
-| 3. % de fáciles crece más lento con γ = 2 | Época 6: 90.0 % (Focal) vs. 98.7 % (BCE); por debajo de BCE en todas las épocas tras el warm-up | Sí |
+| 1. AUC in-domain casi igual | Deepfakes, AUC por video: 0.9971 (BCE) vs. 0.9980 (Focal); Δ = +0.0009 | Sí |
+| 2. Mejora cross-manip., más en FaceSwap que en NeuralTextures | AUC por video con Focal: Face2Face 0.666 vs. 0.688 (−0.022), FaceSwap 0.213 vs. 0.299 (−0.086), NeuralTextures 0.823 vs. 0.753 (+0.070) | No (al revés: empeora FaceSwap, mejora NeuralTextures) |
+| 3. % de fáciles crece más lento con γ = 2 | Época 6: 93.8 % (Focal) vs. 98.1 % (BCE); por debajo de BCE en todas las épocas tras el warm-up | Sí |
 
-**Lectura.** El mecanismo actúa (predicción 3), pero no se traduce en robustez (predicción 2): es compatible con la hipótesis alternativa, en la que los ejemplos difíciles comparten la huella del generador. En FaceSwap el AUC queda **por debajo de 0.5** con ambas pérdidas: el detector puntúa los FaceSwap como *más reales* que los originales, de forma sistemática. Es un hallazgo para discutir con Grad-CAM, no un error de etiquetas (`data.build_items` asigna 1 a toda manipulación).
+**Lectura.** El mecanismo actúa (predicción 3), pero no da la robustez predicha (predicción 2). En FaceSwap el AUC queda **por debajo de 0.5** con ambas pérdidas: el detector puntúa los FaceSwap como *más reales* que los originales, de forma sistemática (no es un error de etiquetas: `data.build_items` asigna 1 a toda manipulación).
 
-**Advertencia de validez:** una sola semilla y un subconjunto (100 pares de entrenamiento). Diferencias de AUC de ~0.01–0.02 no deben interpretarse como efecto sin repetir con más semillas."""),
+**Advertencia de validez:** la misma configuración y semilla dio en la primera corrida NeuralTextures 0.826 (BCE) y 0.820 (Focal), y aquí 0.753 y 0.823: la variación entre ejecuciones (cuDNN, versión de librerías) es del orden de los Δ observados. Una sola corrida no basta; el barrido de semillas del notebook 04 es el que decide."""),
 ]
 
 for name, cells in [("02_preprocesamiento_ffpp.ipynb", nb02), ("03_entrenamiento_bce_vs_focal.ipynb", nb03)]:

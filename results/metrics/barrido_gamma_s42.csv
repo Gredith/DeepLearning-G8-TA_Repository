@@ -1,0 +1,17 @@
+run,gamma,seed,test,auc_frame,auc_video,fuente,caida_rel_frame_pct,caida_rel_video_pct
+bce_s42,0.0,42,Deepfakes,0.9933,0.9971,notebook 03 v3 (commit 1e079fc),0.0,0.0
+bce_s42,0.0,42,Face2Face,0.7122,0.6879,notebook 03 v3 (commit 1e079fc),28.3,31.01
+bce_s42,0.0,42,FaceSwap,0.3588,0.2985,notebook 03 v3 (commit 1e079fc),63.88,70.06
+bce_s42,0.0,42,NeuralTextures,0.7632,0.7532,notebook 03 v3 (commit 1e079fc),23.17,24.46
+focal_g2_s42,2.0,42,Deepfakes,0.9939,0.998,notebook 03 v3 (commit 1e079fc),0.0,0.0
+focal_g2_s42,2.0,42,Face2Face,0.6712,0.6663,notebook 03 v3 (commit 1e079fc),32.47,33.24
+focal_g2_s42,2.0,42,FaceSwap,0.265,0.213,notebook 03 v3 (commit 1e079fc),73.34,78.66
+focal_g2_s42,2.0,42,NeuralTextures,0.8035,0.8232,notebook 03 v3 (commit 1e079fc),19.16,17.52
+focal_g1_s42,1.0,42,Deepfakes,0.9949,0.9979,notebook 04 v2 (commit eb4eada),0.0,0.0
+focal_g1_s42,1.0,42,Face2Face,0.6495,0.6413,notebook 04 v2 (commit eb4eada),34.72,35.74
+focal_g1_s42,1.0,42,FaceSwap,0.3161,0.2677,notebook 04 v2 (commit eb4eada),68.23,73.17
+focal_g1_s42,1.0,42,NeuralTextures,0.7814,0.7982,notebook 04 v2 (commit eb4eada),21.46,20.01
+focal_g5_s42,5.0,42,Deepfakes,0.9951,0.9991,notebook 04 v2 (commit eb4eada),0.0,0.0
+focal_g5_s42,5.0,42,Face2Face,0.6201,0.6356,notebook 04 v2 (commit eb4eada),37.68,36.38
+focal_g5_s42,5.0,42,FaceSwap,0.3673,0.3251,notebook 04 v2 (commit eb4eada),63.09,67.46
+focal_g5_s42,5.0,42,NeuralTextures,0.767,0.7997,notebook 04 v2 (commit eb4eada),22.92,19.96

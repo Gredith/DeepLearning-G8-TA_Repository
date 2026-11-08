@@ -1,0 +1,86 @@
+{
+ "run_name": "focal_g2_s42",
+ "gamma": 2.0,
+ "seed": 42,
+ "fuente": "Kaggle, GPU Tesla T4; outputs de texto de 03_entrenamiento_bce_vs_focal.ipynb v3 (commit del código 1e079fc)",
+ "videos_faltantes": {
+  "train": 0,
+  "val": 0
+ },
+ "history": [
+  {
+   "epoch": 1,
+   "fase": "cabeza",
+   "train_loss": 0.16,
+   "train_pct_faciles": 0.0,
+   "val_auc_frame": 0.8335,
+   "val_auc_video": 0.8819,
+   "seg": 39
+  },
+  {
+   "epoch": 2,
+   "fase": "red completa",
+   "train_loss": 0.0255,
+   "train_pct_faciles": 57.2,
+   "val_auc_frame": 0.997,
+   "val_auc_video": 1.0,
+   "seg": 88
+  },
+  {
+   "epoch": 3,
+   "fase": "red completa",
+   "train_loss": 0.0056,
+   "train_pct_faciles": 86.6,
+   "val_auc_frame": 0.9962,
+   "val_auc_video": 0.9997,
+   "seg": 87
+  },
+  {
+   "epoch": 4,
+   "fase": "red completa",
+   "train_loss": 0.0067,
+   "train_pct_faciles": 88.0,
+   "val_auc_frame": 0.9975,
+   "val_auc_video": 1.0,
+   "seg": 87
+  },
+  {
+   "epoch": 5,
+   "fase": "red completa",
+   "train_loss": 0.0023,
+   "train_pct_faciles": 93.9,
+   "val_auc_frame": 0.9969,
+   "val_auc_video": 1.0,
+   "seg": 87
+  },
+  {
+   "epoch": 6,
+   "fase": "red completa",
+   "train_loss": 0.0029,
+   "train_pct_faciles": 93.8,
+   "val_auc_frame": 0.9986,
+   "val_auc_video": 1.0,
+   "seg": 87
+  }
+ ],
+ "best_epoch": 6,
+ "best_val_auc_frame": 0.9986,
+ "test": {
+  "Deepfakes": {
+   "auc_frame": 0.9939,
+   "auc_video": 0.998
+  },
+  "Face2Face": {
+   "auc_frame": 0.6712,
+   "auc_video": 0.6663
+  },
+  "FaceSwap": {
+   "auc_frame": 0.265,
+   "auc_video": 0.213
+  },
+  "NeuralTextures": {
+   "auc_frame": 0.8035,
+   "auc_video": 0.8232
+  }
+ }
+}

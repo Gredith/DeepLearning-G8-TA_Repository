@@ -12,10 +12,11 @@ Cada entrada registra **qué** se decidió, **qué alternativas** había, **por 
 >   - **Pipeline CLI** (`src/data_pipeline/`, `src/train.py`, `src/evaluate*.py`, `src/teardown/`): pipeline completo con manifiestos y procedencia, para las corridas de la Fase B completa.
 > - Fase A: completa para todo lo que no depende de datos (parámetros, FLOPs, RF, separable vs. estándar, latencia y memoria en CPU). Pendiente en Kaggle: latencia y memoria en GPU, activaciones sobre caras, ERF sobre caras y Grad-CAM.
 > - Fase B: primera corrida real BCE vs. Focal (γ=2) ejecutada en Kaggle T4 el 28/10 (B-01, B-02; `results/metrics/`). Focal no mejora la robustez cross-manipulation.
+> - 07–08/11: corrida oficial del pipeline nuevo (02 → 06; B-03 a B-06, C-01). Las semillas 43/44 del barrido son inválidas (D-13) y se repiten; el análisis final (05) se rehace después.
 
 ## Índice de decisiones
 
-Las decisiones vigentes y su justificación se detallan en D-01–D-12. Esta sección se omite para evitar duplicar el resumen de cada entrada; para el estado de tareas y evidencia consulta [E2](E2_Tareas_programacion.md) y [E3](E3_Tareas_programacion.md).
+Las decisiones vigentes y su justificación se detallan en D-01–D-13. Esta sección se omite para evitar duplicar el resumen de cada entrada; para el estado de tareas y evidencia consulta [E2](E2_Tareas_programacion.md) y [E3](E3_Tareas_programacion.md).
 
 ---
 
@@ -83,6 +84,11 @@ Las decisiones vigentes y su justificación se detallan en D-01–D-12. Esta sec
   - Ninguna celda muestra caras: `kaggle_io.save_private` guarda la figura en `/kaggle/working/privado/` y la cierra sin mostrarla. El log de descarga va a `privado/descarga.log`. Así, lo que Kaggle sincroniza con GitHub sale limpio por construcción.
 - **Por qué:** un archivo grande se maneja mejor que miles de archivos chicos, y separar el 02 del 03 permite volver a entrenar sin repetir ~2 h de descarga y recorte. La protección de licencia no puede depender de un paso manual cuando la sincronización es automática.
 
+### D-13 · La semilla de inicialización no elige los datos (`data_seed` fija en 42)
+- **Problema (detectado el 08/11 en el notebook 04 v2):** `train.run` usaba `seed` también para elegir los 100 pares de train y los 30 de val. El Dataset `ffpp-crops-g8` solo tiene los pares de la semilla 42, así que las corridas con semilla 43 y 44 entrenaron con 116 y 152 de los 400 videos (29–38 %) y validaron con 60 y 44 de 120. El test no se vio afectado (usa los 70 pares completos).
+- **Qué:** `Config.data_seed` (por defecto 42) elige los subconjuntos y `seed` solo controla la inicialización de la cabeza, el orden de los batches y la augmentación. El 04 asegura que no falten videos de train y no reutiliza corridas que entrenaron con videos faltantes.
+- **Por qué:** comparar semillas debe medir la variabilidad del entrenamiento sobre **los mismos datos**; si la semilla también cambia y reduce el train, la dispersión entre semillas mezcla dos efectos. Las 8 corridas con semilla 43/44 quedan como inválidas (`results/metrics/kaggle_todas_las_corridas.csv`, columna `datos_completos`) y se repiten.
+
 ---
 
 ## Hallazgos de la Fase A (teardown) — `notebooks/kaggle/01_teardown_xception.ipynb`
@@ -131,7 +137,16 @@ Esto no prueba nada sobre el modelo entrenado. Es una predicción que la Fase C 
 | B-01 | 28/10 | `bce_s42`: γ=0, 100/30/70 pares, 16 frames, 6 épocas, T4 (mejor época 3) | AUC por video: DF 0.998 · F2F 0.686 · FS 0.246 · NT 0.826. Fáciles en la época 6: 98.7 % | — (línea base) |
 | B-02 | 28/10 | `focal_g2_s42`: γ=2, igual a B-01 (mejor época 4) | AUC por video: DF 0.999 · F2F 0.674 · FS 0.228 · NT 0.820. Fáciles en la época 6: 90.0 % | Predicciones 1 y 3 sí; **2 no**: Focal no mejora el cross-manipulation (Δ AUC por video entre −0.006 y −0.018; por frame entre −0.016 y −0.024; una semilla) |
 
-Datos: `results/metrics/b01_bce_s42.json`, `b02_focal_g2_s42.json` y `comparacion_bce_vs_focal.csv`, transcritos de las salidas de texto de la versión 5 del notebook 02. Faltan 6 recortes de Deepfakes (3 en train y 3 en val; test completo): el nuevo manifiesto registra el motivo. En FaceSwap el AUC < 0.5 con ambas pérdidas: el detector puntúa los FaceSwap como más reales que los originales. Las etiquetas están bien (toda manipulación = 1), así que es un hallazgo que hay que explicar con Grad-CAM.
+| B-03 | 07/11 | `bce_s42` repetida con el pipeline nuevo (Dataset `ffpp-crops-g8`, notebook 03 v3; mejor época 5) | AUC por video: DF 0.997 · F2F 0.688 · FS 0.299 · NT 0.753. Fáciles en la época 6: 98.1 % | — (línea base oficial) |
+| B-04 | 07/11 | `focal_g2_s42`, igual a B-03 (mejor época 6) | AUC por video: DF 0.998 · F2F 0.666 · FS 0.213 · NT 0.823. Fáciles en la época 6: 93.8 % | 1 y 3 sí; **2 no**: FS −0.086, F2F −0.022, NT +0.070 |
+| B-05 | 07/11 | `focal_g1_s42` (04 v2) | AUC por video: DF 0.998 · F2F 0.641 · FS 0.268 · NT 0.798. Fáciles en la época 6: 95.7 % | — |
+| B-06 | 07/11 | `focal_g5_s42` (04 v2) | AUC por video: DF 0.999 · F2F 0.636 · FS 0.325 · NT 0.800. Fáciles en la época 6: 56.8 % | H-B2: el in-domain **no** cae con γ=5 |
+| B-07…14 | 07/11 | γ ∈ {0,1,2,5} × semillas 43 y 44 (04 v2) | **Inválidas** (D-13): entrenaron con 29–38 % de los videos | Se repiten con `data_seed` = 42 |
+| C-01 | 07/11 | Grad-CAM `block12`, BCE y Focal γ=2 (s42), 2 frames por video de test (06 v2) | Cuando el modelo responde *falso*, la masa está en el interior de la cara (0.67–0.95); cuando responde *real*, sobre todo fuera (0.31–0.62). Masa en el borde: Deepfakes detectados 0.126 vs. FaceSwap no detectados 0.319 (BCE) | No: no es el «borde de mezcla» predicho; Focal concentra aún más la masa en el interior |
+
+Datos: `results/metrics/e3_bce_s42.json` y `e3_focal_g2_s42.json` (B-03, B-04), `barrido_gamma_s42.csv` (B-03 a B-06), `kaggle_todas_las_corridas.csv` y `kaggle_historial_por_epoca.csv` (todas, con la columna `datos_completos`), `gradcam_masa_por_region.csv` (C-01); transcritos de las salidas de texto de los notebooks 03, 04 y 06 sincronizados desde Kaggle. **Variación entre ejecuciones:** B-01 y B-03 tienen la misma configuración y semilla, pero NT pasa de 0.826 a 0.753 (y FS de 0.246 a 0.299); cambiaron el entorno de Kaggle (torch 2.11, CUDA 13) y el pipeline de datos. Diferencias de ese tamaño entre γ no son concluyentes con una sola corrida. El análisis del 05 v2 (media ± desv. y bootstrap) mezcla corridas válidas e inválidas y no se usa; se vuelve a correr cuando el 04 repita las semillas 43 y 44.
+
+B-01 y B-02: `results/metrics/b01_bce_s42.json`, `b02_focal_g2_s42.json` y `comparacion_bce_vs_focal.csv`, transcritos de las salidas de texto de la versión 5 del notebook 02. Faltan 6 recortes de Deepfakes (3 en train y 3 en val; test completo): el nuevo manifiesto registra el motivo. En FaceSwap el AUC < 0.5 con ambas pérdidas: el detector puntúa los FaceSwap como más reales que los originales. Las etiquetas están bien (toda manipulación = 1), así que es un hallazgo que hay que explicar con Grad-CAM.
 
 ---
 
@@ -152,4 +167,5 @@ Datos: `results/metrics/b01_bce_s42.json`, `b02_focal_g2_s42.json` y `comparacio
 - 2026-10-21: se eligió MTCNN como detector inicial y se definió el formato CSV de manifiestos para el pipeline T1.
 - 2026-10-21: se quitaron del notebook explorador las figuras con frames de FF++ y la URL del script de descarga, también del historial (D-11); se añadió `tools/limpiar_caras.py`.
 - 2026-11-07: reestructuración de los notebooks (D-12): Dataset `ffpp-crops-g8` empaquetado y salidas sin caras; segundo incidente de licencia y nueva reescritura del historial (D-11); resultados B-01/B-02 registrados.
+- 2026-11-08: resultados de los notebooks 02–06 (B-03 a B-06, C-01); se detectó y corrigió que la semilla elegía los datos (D-13); `limpiar_caras.py` deja pasar tablas HTML y gráficos que solo nombran Grad-CAM.
 - 2026-10-21: se integraron los notebooks E2 (`notebooks/kaggle/01–03`, `src/kaggle_e2/`, `results/teardown/`) y este cuaderno; la normalización pasó a 0.5 (D-02).
