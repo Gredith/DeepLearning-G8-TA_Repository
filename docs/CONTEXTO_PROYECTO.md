@@ -7,7 +7,7 @@
 
 ## 0. Reglas para el asistente
 
-1. **No inventes resultados.** Las únicas cifras reales son las de la Fase A (sección 6), la primera corrida (sección 6b) y las del pipeline nuevo (sección 6c: γ ∈ {0, 1, 2, 5} con **una sola semilla** y Grad-CAM por regiones). Todavía **no hay** semillas 43–44 válidas, intervalos de confianza ni mediciones en GPU. Si un documento pide esos resultados, deja el espacio marcado como pendiente.
+1. **No inventes resultados.** Las únicas cifras reales son las de la Fase A (sección 6), la primera corrida (sección 6b) y las del pipeline nuevo (sección 6c: γ ∈ {0, 1, 2, 5} × 3 semillas con IC 95 % por bootstrap, y Grad-CAM por regiones con la semilla 42). Todavía **no hay** mediciones de latencia en GPU, c40 ni DFDC. Si un documento pide esos resultados, deja el espacio marcado como pendiente.
 2. **Usa los valores de este documento, no los de la propuesta E1 original.** La E1 (7/10) decía «20–30 frames», «MTCNN o RetinaFace», «224×224 o 299×299», «T4/P100» y «200–300 videos por clase». **Todo eso quedó superado.** Los valores vigentes están en la sección 4.
 3. Los entregables al workshop (abstract y póster) se escriben **en inglés**. Los del curso (E1, E2, cuaderno de decisiones) se escriben **en español**.
 4. Escribe γ (gamma), no «y». Escribe «γ ∈ {0, 1, 2, 5}», nunca «γ ≤ {…}».
@@ -168,7 +168,20 @@ Kaggle T4, Dataset `ffpp-crops-g8`. Archivos: `results/metrics/e3_*.json`, `barr
 - **H-B1:** predicciones 1 y 3 se cumplen; la 2 no (con γ = 2 empeora FaceSwap −0.086 y mejora NeuralTextures +0.070, al revés de lo predicho).
 - **H-B2:** el in-domain no cae con γ = 5; no hay una tendencia clara en el cross-manipulation.
 - **Variación entre ejecuciones:** la misma configuración (B-01 vs. B-03) dio NT 0.826 vs. 0.753 y FS 0.246 vs. 0.299. Los Δ entre γ son del mismo orden, así que con una semilla **no son concluyentes**.
-- **Semillas 43/44 inválidas (D-13):** entrenaron con 29–38 % de los videos porque la semilla también elegía los datos. Corregido (`data_seed`); hay que repetir esas 8 corridas en el 04 y luego correr el 05. Las tablas y el bootstrap del 05 v2 **no se usan**.
+- **Semillas 43/44 (D-13):** la primera vez entrenaron con 29–38 % de los videos porque la semilla también elegía los datos. Se corrigió (`data_seed`) y se repitieron (04 v3, 08/11).
+
+**Resultado final con 3 semillas (05 v3, F-01).** AUC por video, media ± desv.:
+
+| | Deepfakes | Face2Face | FaceSwap | NeuralTextures | Fáciles ép. 6 |
+|---|---|---|---|---|---|
+| BCE (γ = 0) | 0.997 ± 0.001 | 0.692 ± 0.017 | 0.260 ± 0.059 | 0.761 ± 0.017 | 98.5 % |
+| Focal γ = 1 | 0.998 ± 0.001 | 0.679 ± 0.041 | 0.236 ± 0.038 | 0.803 ± 0.005 | 95.6 % |
+| Focal γ = 2 | 0.998 ± 0.000 | 0.689 ± 0.034 | 0.246 ± 0.035 | 0.803 ± 0.019 | 91.8 % |
+| Focal γ = 5 | 0.999 ± 0.000 | 0.696 ± 0.052 | 0.242 ± 0.073 | 0.800 ± 0.020 | 62.1 % |
+
+- **Δ frente a BCE (IC 95 %, bootstrap pareado):** NeuralTextures +0.040 a +0.042 con cualquier γ, y el IC excluye 0 (γ=2: [0.020, 0.066]). En FaceSwap y Face2Face todos los IC incluyen 0, así que el efecto es nulo. Deepfakes con γ=5: +0.0015, significativo pero despreciable.
+- **H-B1:** predicciones 1 y 3 sí; la 2 no (la mejora aparece en NeuralTextures, no en FaceSwap). **H-B2:** no (γ=5 no baja el in-domain; la ganancia es un escalón con γ > 0, no un óptimo).
+- **FaceSwap < 0.5** en las 12 corridas (0.19–0.33).
 - **Grad-CAM (06, C-01):** cuando el modelo responde *falso*, la masa está en el interior de la cara (0.67–0.95, muy concentrada); cuando responde *real*, sobre todo fuera de la cara (0.31–0.62, dispersa). Los FaceSwap no detectados se ven como reales: no aparece la evidencia del interior que el modelo aprendió de Deepfakes. No se confirma la hipótesis del «borde de mezcla».
 
 ---
@@ -187,18 +200,20 @@ Kaggle T4, Dataset `ffpp-crops-g8`. Archivos: `results/metrics/e3_*.json`, `barr
 
 - 07–08/11: ejecutados en Kaggle 02 → Dataset → 03, 01, 04, 06 y 05 (sección 6c). Grad-CAM por regiones hecho; γ = 1 y γ = 5 con la semilla 42.
 
+- 08/11: 04 v3 (semillas 43–44 válidas) y 05 v3 (media ± desv. e IC 95 %): sección 6c.
+
 **Pendiente:**
-- Repetir en el 04 las 8 corridas con semillas 43–44 (D-13; ~1.5–2 h en T4) y volver a correr el 05 (media ± desv. e IC 95 %).
+- Llevar los resultados al informe y al extended abstract.
 - Latencia y memoria en GPU T4; c40 y DFDC quedan como trabajo futuro.
 
-**Tabla de resultados que hay que llenar** (entrenando en Deepfakes c23; AUC por video; por ahora una semilla, la 42). La versión final (media ± desviación entre semillas) la genera el notebook 05:
+**Tabla de resultados** (entrenando en Deepfakes c23; AUC por video; media ± desviación entre las semillas 42, 43 y 44; notebook 05 v3):
 
 | Pérdida | DF (in-domain) | F2F | FS | NT | c40 | DFDC |
 |---|---|---|---|---|---|---|
-| BCE (γ = 0) | 0.997 | 0.688 | 0.299 | 0.753 | – | – |
-| FL γ = 1 | 0.998 | 0.641 | 0.268 | 0.798 | – | – |
-| FL γ = 2 | 0.998 | 0.666 | 0.213 | 0.823 | – | – |
-| FL γ = 5 | 0.999 | 0.636 | 0.325 | 0.800 | – | – |
+| BCE (γ = 0) | 0.997 ± 0.001 | 0.692 ± 0.017 | 0.260 ± 0.059 | 0.761 ± 0.017 | – | – |
+| FL γ = 1 | 0.998 ± 0.001 | 0.679 ± 0.041 | 0.236 ± 0.038 | 0.803 ± 0.005 | – | – |
+| FL γ = 2 | 0.998 ± 0.000 | 0.689 ± 0.034 | 0.246 ± 0.035 | 0.803 ± 0.019 | – | – |
+| FL γ = 5 | 0.999 ± 0.000 | 0.696 ± 0.052 | 0.242 ± 0.073 | 0.800 ± 0.020 | – | – |
 
 Si hay una sola semilla, se indica. Con diferencias pequeñas no se sacan conclusiones: se usa el IC 95 % del notebook 05.
 

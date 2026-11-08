@@ -1,0 +1,13 @@
+test,gamma_a,gamma_b,semillas,videos,delta_auc_video,ic95_bajo,ic95_alto,excluye_0
+Deepfakes,1.0,0.0,3,280,0.0005,-0.0007,0.002,False
+Face2Face,1.0,0.0,3,280,-0.0129,-0.0393,0.0122,False
+FaceSwap,1.0,0.0,3,280,-0.0235,-0.0503,0.0042,False
+NeuralTextures,1.0,0.0,3,280,0.0417,0.0189,0.0629,True
+Deepfakes,2.0,0.0,3,280,0.001,-0.0001,0.0026,False
+Face2Face,2.0,0.0,3,280,-0.0032,-0.0315,0.0247,False
+FaceSwap,2.0,0.0,3,280,-0.0142,-0.0455,0.0158,False
+NeuralTextures,2.0,0.0,3,280,0.0423,0.0198,0.0661,True
+Deepfakes,5.0,0.0,3,280,0.0015,0.0003,0.0033,True
+Face2Face,5.0,0.0,3,280,0.0036,-0.0214,0.0289,False
+FaceSwap,5.0,0.0,3,280,-0.0177,-0.0437,0.0084,False
+NeuralTextures,5.0,0.0,3,280,0.0395,0.0187,0.061,True

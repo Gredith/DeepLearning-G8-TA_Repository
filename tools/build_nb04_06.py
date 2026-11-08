@@ -182,15 +182,17 @@ if len(hist):
     axes[0].set_title("% de ejemplos fáciles en train (p_t > 0.9)", loc="left"); axes[1].set_title("AUC de validación (Deepfakes)", loc="left")
     for a in axes: a.set_xlabel("época"); a.axvline(1.5, color=S.GRID, lw=1); a.legend(fontsize=8)
     plt.tight_layout(); plt.savefig(OUT / "fig_final_mecanismo.png", dpi=200); plt.show()'''),
-md("""## 4. Lectura (completar con los números de arriba)
+md("""### 4. Lectura
+Resultados de la v3 (08/11/2026; 12 corridas, γ ∈ {0, 1, 2, 5} × semillas {42, 43, 44}, todas con los 400 videos de train; `results/metrics/barrido_*.csv` y `bootstrap_delta_auc_video.csv`).
+
 | Pregunta | Evidencia | Conclusión |
 |---|---|---|
-| ¿Focal γ=2 mejora el cross-manipulation frente a BCE? | Δ AUC e IC 95 % de la sección 2 | |
-| ¿La relación con γ es no monótona (H-B2)? ¿γ=5 baja el in-domain? | Tabla de la sección 1 | |
-| ¿El mecanismo ocurre (menos fáciles con γ mayor)? | Sección 3 | |
-| ¿FaceSwap < 0.5 se repite entre semillas y pérdidas? | Tabla de la sección 1 | Diagnóstico en el notebook 06 |
+| ¿Focal γ=2 mejora el cross-manipulation frente a BCE? | Δ AUC por video (IC 95 %): NeuralTextures +0.042 [0.020, 0.066]; FaceSwap −0.014 [−0.046, 0.016]; Face2Face −0.003 [−0.032, 0.025] | Solo en NeuralTextures. En FaceSwap y Face2Face el efecto es nulo. Es lo contrario de lo predicho (más en FaceSwap) |
+| ¿La relación con γ es no monótona (H-B2)? ¿γ=5 baja el in-domain? | In-domain 0.997 → 0.998 → 0.998 → 0.999; NeuralTextures 0.761 → 0.803 → 0.803 → 0.800 | No baja el in-domain. La ganancia en NeuralTextures aparece con cualquier γ > 0 y luego se mantiene plana (efecto de escalón, no de óptimo) |
+| ¿El mecanismo ocurre (menos fáciles con γ mayor)? | Fáciles en la época 6: 98.5 % (γ=0), 95.6 % (1), 91.8 % (2), 62.1 % (5); se repite en las 3 semillas | Sí, y de forma monótona |
+| ¿FaceSwap < 0.5 se repite entre semillas y pérdidas? | AUC por video entre 0.19 y 0.33 en las 12 corridas | Sí, de forma sistemática. Diagnóstico en el notebook 06 |
 
-Regla: si el IC 95 % incluye 0, no se afirma un efecto, se reporta como nulo."""),
+Regla: si el IC 95 % incluye 0, no se afirma un efecto, se reporta como nulo. El IC remuestrea los videos de test y promedia las 3 semillas; con solo 3 semillas, la variabilidad entre semillas está poco estimada."""),
 ]
 
 # ------------------------------------------------------------------ 06
