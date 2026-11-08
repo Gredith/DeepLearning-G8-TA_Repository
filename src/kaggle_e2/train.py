@@ -47,7 +47,8 @@ class Config:
     weight_decay: float = 0.0
     warmup_epochs: int = 1           # solo la cabeza (como FF++, que entrena primero la capa final)
     epochs: int = 6                  # total, incluyendo warm-up
-    seed: int = 42
+    seed: int = 42                   # inicialización, orden de los batches y aumentos
+    data_seed: int = 42              # qué pares de train/val se usan: fija, son los que recortó el notebook 02
     num_workers: int = 2
     amp: bool = True
     easy_threshold: float = 0.9      # p_t > 0.9 = ejemplo "fácil" (diagnóstico de la hipótesis)
@@ -103,9 +104,11 @@ def run(cfg: Config, device=None, verbose=True):
     out_dir, ckpt_dir = Path(cfg.out_dir), Path(cfg.ckpt_dir)
     out_dir.mkdir(parents=True, exist_ok=True); ckpt_dir.mkdir(parents=True, exist_ok=True)
 
-    tr_pairs = D.subset_pairs(D.load_pairs(cfg.splits_dir, "train"), cfg.n_train_pairs, cfg.seed)
-    va_pairs = D.subset_pairs(D.load_pairs(cfg.splits_dir, "val"), cfg.n_val_pairs, cfg.seed)
-    te_pairs = D.subset_pairs(D.load_pairs(cfg.splits_dir, "test"), cfg.n_test_pairs, cfg.seed)
+    # Los subconjuntos dependen de data_seed, no de seed: así varias semillas comparan la misma partición
+    # (y es la que existe en el Dataset de recortes).
+    tr_pairs = D.subset_pairs(D.load_pairs(cfg.splits_dir, "train"), cfg.n_train_pairs, cfg.data_seed)
+    va_pairs = D.subset_pairs(D.load_pairs(cfg.splits_dir, "val"), cfg.n_val_pairs, cfg.data_seed)
+    te_pairs = D.subset_pairs(D.load_pairs(cfg.splits_dir, "test"), cfg.n_test_pairs, cfg.data_seed)
     tr_items, tr_miss = D.build_items(cfg.crops_dir, tr_pairs, cfg.train_methods, max_frames=cfg.frames_per_video)
     va_items, va_miss = D.build_items(cfg.crops_dir, va_pairs, cfg.train_methods, max_frames=cfg.frames_per_video)
     assert tr_items and va_items, f"No hay recortes en {cfg.crops_dir} para los splits pedidos"

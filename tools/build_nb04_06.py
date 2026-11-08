@@ -1,4 +1,5 @@
 """Genera los notebooks de Kaggle 04 (barrido de γ y semillas), 05 (análisis final) y 06 (diagnóstico Grad-CAM)."""
+import sys
 import nbformat as nbf
 from pathlib import Path
 
@@ -72,6 +73,9 @@ if Path("/kaggle/input").exists():
         preds = js.parent / f"preds_{js.stem}.csv.gz"
         if g is None or not preds.exists() or (RUNS / js.name).exists():
             continue
+        info = json.loads(js.read_text())
+        if info.get("data", {}).get("train", {}).get("videos_faltantes", 0) > 0 and not os.environ.get("SMOKE"):
+            print(f"[{js.stem}] no se reutiliza: entrenó sin todos sus videos (corrida anterior a data_seed)"); continue
         shutil.copy(js, RUNS / js.name); shutil.copy(preds, RUNS / preds.name); reusadas.append(js.stem)
         ck = next(Path("/kaggle/input").rglob(f"{js.stem}.pt"), None)
         if js.stem in CKPT_GUARDAR and ck is not None:
@@ -86,7 +90,8 @@ for g, s in PRIORIDAD:
     horas = (time.time() - t0) / 3600
     if horas > MAX_HORAS - 0.3:
         print(f"Se detiene antes de {name}: {horas:.1f} h usadas (MAX_HORAS={MAX_HORAS}). Agregar este output como input y volver a guardar."); break
-    run(Config(run_name=name, gamma=float(g), seed=s, **BASE), verbose=True)
+    r = run(Config(run_name=name, gamma=float(g), seed=s, data_seed=42, **BASE), verbose=True)
+    assert os.environ.get("SMOKE") or r["data"]["train"]["videos_faltantes"] == 0, f"{name}: faltan videos de train"
     if name not in CKPT_GUARDAR:
         (CKPT / f"{name}.pt").unlink(missing_ok=True)
 print(f"total: {(time.time() - t0) / 60:.0f} min")'''),
@@ -285,16 +290,23 @@ ax.set_ylabel("fracción de la masa Grad-CAM"); ax.set_xlabel("")
 ax.set_title("Masa de Grad-CAM en el anillo del borde de la cara (videos falsos)", loc="left"); ax.grid(axis="x", visible=False)
 ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=2)
 plt.tight_layout(); plt.savefig(OUT / "fig_gradcam_masa_borde.png", dpi=200); plt.show()'''),
-md("""## 3. Contraste con la hipótesis *(completar después de correr)*
+md("""### 3. Contraste con la hipótesis
+Resultados de la v2 (07/11/2026; `results/metrics/gradcam_masa_por_region.csv`), 2 frames por video de test, regiones concéntricas aproximadas.
+
 | Predicción | Resultado | ¿Se cumplió? |
 |---|---|---|
-| Masa en el borde: Deepfakes bien detectados > FaceSwap no detectados | | |
-| Focal no desplaza la masa hacia el interior | | |
+| Masa en el borde: Deepfakes bien detectados > FaceSwap no detectados | BCE: 0.126 (Deepfakes detectados) vs. 0.319 (FaceSwap no detectados) | No (al revés) |
+| Focal no desplaza la masa hacia el interior | Falsos detectados en Deepfakes: interior 0.946 (Focal) vs. 0.866 (BCE) | No: Focal la concentra aún más en el interior |
+
+**Lectura.** El patrón no es «borde de mezcla»: cuando el modelo dice *falso* (falsos detectados y también reales mal clasificados), la masa está en el **interior** de la cara (0.67–0.95 según manipulación y pérdida, con `area_50` ≈ 0.04–0.07, es decir, muy concentrada); cuando dice *real* (reales bien clasificados y falsos no detectados, incluido FaceSwap), la masa se va sobre todo **fuera** de la cara (0.31–0.62) y se dispersa (`area_50` ≈ 0.22–0.28). Una lectura compatible: el detector aprendió una evidencia del interior propia de Deepfakes; FaceSwap no la presenta y el modelo responde *real*. En la tabla de regiones no aparece ningún video FaceSwap acertado con Focal.
 
 Límites: las regiones son concéntricas y aproximadas (no hay segmentación de la cara), es una sola semilla y Grad-CAM muestra correlación, no causalidad."""),
 ]
 
 for name, cells, meta in [("04_barrido_gamma_semillas.ipynb", nb04, META_GPU), ("05_analisis_final.ipynb", nb05, META_CPU),
                           ("06_diagnostico_gradcam.ipynb", nb06, META_GPU)]:
+    # `python tools/build_nb04_06.py 04` regenera solo el 04 (no borra las salidas de Kaggle de los demás)
+    if len(sys.argv) > 1 and not any(name.startswith(a) for a in sys.argv[1:]):
+        continue
     nbf.write(nbf.v4.new_notebook(cells=cells, metadata=meta), NB / name)
 print("ok")
