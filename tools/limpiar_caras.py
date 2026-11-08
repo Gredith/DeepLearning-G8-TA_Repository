@@ -5,7 +5,7 @@ de descarga. Kaggle sincroniza los notebooks con GitHub **con sus salidas**, as�
 segunda barrera (la primera es que los notebooks no muestran caras: ver `kaggle_io.save_private`).
 
 Se borran:
-1. Las imágenes y el HTML de celdas con el tag `caras` (su texto, p. ej. «figura privada guardada…», se conserva).
+1. Las imágenes y el HTML con imágenes incrustadas de celdas con el tag `caras` (su texto, p. ej. «figura privada guardada…», y las tablas se conservan).
 2. Las imágenes (`image/*`) de celdas cuyo código toca recortes, frames o Grad-CAM.
 3. Las salidas de texto que contienen el log o la ruta del script de descarga de FF++.
 
@@ -30,8 +30,10 @@ TEXTO_PROHIBIDO = re.compile(
     r"download[-_]faceforensics", re.IGNORECASE)
 # Código que produce imágenes con caras del dataset
 CODIGO_CON_CARAS = re.compile(
-    r"CROPS|crops|gradcam|imshow\(\s*Image\.open|frames_por_dataset|extraer_frames|denorm\(|"
+    r"CROPS|crops|gradcam\.|GradCAM\(|imshow\(\s*Image\.open|frames_por_dataset|extraer_frames|denorm\(|"
     r"intermediate_activations|VideoCapture", re.IGNORECASE)
+# HTML que puede llevar una imagen incrustada (las tablas de pandas no la llevan y se conservan)
+HTML_CON_IMAGEN = re.compile(r"<img|<svg|data:image|base64", re.IGNORECASE)
 
 
 def _tiene_tag(cell: dict) -> bool:
@@ -42,6 +44,11 @@ def _texto(output: dict) -> str:
     partes = [output.get("text", "")] + [output.get("data", {}).get(k, "") for k in ("text/plain", "text/html")]
     partes += [output.get("evalue", "")] + list(output.get("traceback", []))
     return "".join("".join(p) if isinstance(p, list) else str(p) for p in partes)
+
+
+def _html(output: dict) -> str:
+    h = output.get("data", {}).get("text/html", "")
+    return "".join(h) if isinstance(h, list) else str(h)
 
 
 def _es_imagen(output: dict) -> bool:
@@ -60,8 +67,8 @@ def limpiar_notebook(notebook: dict) -> tuple[dict, list[str]]:
         con_caras = tag or bool(CODIGO_CON_CARAS.search(fuente))
         nuevas = []
         for out in outputs:
-            if tag and "text/html" in out.get("data", {}):
-                quitado.append(f"celda {index}: HTML en una celda con tag '{TAG}'")
+            if tag and HTML_CON_IMAGEN.search(_html(out)):
+                quitado.append(f"celda {index}: HTML con imagen en una celda con tag '{TAG}'")
             elif con_caras and _es_imagen(out):
                 quitado.append(f"celda {index}: imagen generada a partir de recortes/frames/Grad-CAM")
             elif TEXTO_PROHIBIDO.search(_texto(out)):
