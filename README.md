@@ -18,6 +18,14 @@ python -m pip install -r environment/requirements.txt
 
 La ejecución experimental completa requiere acceso autorizado a FF++ y un runtime compatible con PyTorch. No se suben al repositorio videos, frames, recortes, credenciales ni checkpoints grandes.
 
+## Demo en vivo (Grad-CAM, BCE vs. Focal)
+
+[`demo/`](demo/README.md) contiene una interfaz local (Gradio): se sube una imagen, se detecta y recorta la cara como en el entrenamiento y se comparan la probabilidad de «falso» y el Grad-CAM de los modelos BCE y Focal γ = 2. Necesita los pesos del output del notebook 04 en `results/checkpoints/` (no se versionan):
+
+```bash
+python demo/app.py   # http://127.0.0.1:7860
+```
+
 ## Estructura
 
 | Ruta | Propósito |
@@ -26,6 +34,7 @@ La ejecución experimental completa requiere acceso autorizado a FF++ y un runti
 | `configs/`, `environment/` | Configuración y dependencias. |
 | `src/` | Lógica reutilizable, entrenamiento, evaluación y análisis. |
 | `notebooks/kaggle/` | Orquestación de los experimentos en Kaggle. |
+| `demo/` | Demo local con interfaz: detección, probabilidad y Grad-CAM BCE vs. Focal. |
 | `tests/`, `tools/` | Pruebas y utilidades de mantenimiento. |
 | `results/` | Splits, métricas y resultados permitidos; los artefactos protegidos o pesados se excluyen. |
 

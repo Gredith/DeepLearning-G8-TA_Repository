@@ -1,0 +1,16 @@
+# Dependencias de la demo (demo/app.py). PyTorch en CPU basta: ~1 s por imagen con los dos modelos.
+#   python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   python -m pip install -r demo/requirements.txt
+#   python -m pip install --no-deps facenet-pytorch   # sin deps: su pin de torch es antiguo
+torch
+torchvision
+timm
+gradio
+opencv-python-headless
+numpy
+pandas
+matplotlib
+Pillow
+scikit-learn   # la importa src/kaggle_e2/analysis.py (métricas por región)
+requests   # la usa facenet-pytorch (instalada sin deps)
+tqdm
