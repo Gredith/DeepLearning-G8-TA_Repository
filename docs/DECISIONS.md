@@ -13,6 +13,7 @@ Cada entrada registra **qué** se decidió, **qué alternativas** había, **por 
 > - Fase A: completa para todo lo que no depende de datos (parámetros, FLOPs, RF, separable vs. estándar, latencia y memoria en CPU). Pendiente en Kaggle: latencia y memoria en GPU, activaciones sobre caras, ERF sobre caras y Grad-CAM.
 > - Fase B: primera corrida real BCE vs. Focal (γ=2) ejecutada en Kaggle T4 el 28/10 (B-01, B-02; `results/metrics/`). Focal no mejora la robustez cross-manipulation.
 > - 07–08/11: corrida oficial del pipeline nuevo (02 → 06; B-03 a B-06, C-01). 08/11: semillas 43/44 repetidas tras D-13 y análisis final (F-01): Focal mejora solo NeuralTextures (+0.04 con cualquier γ > 0); FaceSwap y Face2Face sin efecto.
+> - 22/11: **Fase D** (D-14, H-D1): para que el detector cumpla el propósito de generalizar, se agregan falsos sintéticos (SBI) fabricados con los reales de train, más Focal γ = 2 y aumentos de compresión. Notebook 07 implementado y probado con datos sintéticos; pendiente de correr en Kaggle.
 
 ## Índice de decisiones
 
@@ -89,6 +90,23 @@ Las decisiones vigentes y su justificación se detallan en D-01–D-13. Esta sec
 - **Qué:** `Config.data_seed` (por defecto 42) elige los subconjuntos y `seed` solo controla la inicialización de la cabeza, el orden de los batches y la augmentación. El 04 asegura que no falten videos de train y no reutiliza corridas que entrenaron con videos faltantes.
 - **Por qué:** comparar semillas debe medir la variabilidad del entrenamiento sobre **los mismos datos**; si la semilla también cambia y reduce el train, la dispersión entre semillas mezcla dos efectos. Las 8 corridas con semilla 43/44 del 04 v2 quedan como inválidas (sus salidas siguen en el historial de Git, commit `abcba85`) y se repitieron en el 04 v3; `results/metrics/` solo tiene las válidas (columna `datos_completos`).
 
+### D-14 · Fase D: falsos sintéticos (Self-Blended Images) para generalizar a manipulaciones no vistas
+- **Problema:** las Fases B y C mostraron que el detector no cumple el propósito del proyecto. Con BCE o con Focal, entrenado solo con Deepfakes, busca una evidencia del interior de la cara propia de ese generador (C-01): FaceSwap queda por debajo del azar en las 12 corridas y Focal solo mejora NeuralTextures (F-01). El mecanismo de Focal funcionó, pero los ejemplos difíciles tienen la misma huella del generador: **el límite está en los datos, no en la pérdida.**
+- **Qué:** además de Deepfakes, el modelo entrena con **SBI** (Shiohara y Yamasaki, CVPR 2022): se copia un frame real, se altera la copia (color, nitidez y una desalineación de ±3 %) y se mezcla con el original dentro de una máscara con forma de cara. Así aparecen el borde de mezcla y las diferencias de color y frecuencia que comparten casi todas las falsificaciones, sin la huella de ningún generador. Implementación: `src/kaggle_e2/sbi.py`, `Config.train_fakes = "deepfakes+sbi"`.
+  - **Máscara sin landmarks:** los recortes no guardan landmarks, así que se usa una elipse deformada (armónicos bajos del contorno) y difuminada, centrada en la caja de la cara (lado 1/1.3 del recorte, D-03). Es una aproximación a la envolvente convexa de landmarks del artículo.
+  - **Mezcla con Deepfakes:** en cada época, cada falso de train es Deepfakes o un SBI de un real de train, con probabilidad 0.5. El tamaño de la época y el balance 1:1 quedan como en D-06, y α = None sigue siendo válido (D-07).
+  - **Selección del checkpoint:** AUC de val sobre reales + Deepfakes + SBI deterministas de los reales de val (`sbi_val_seed`), la misma mezcla del train.
+  - **Protocolo del curso:** el modelo **no ve** Face2Face, FaceSwap ni NeuralTextures. Sigue siendo «entrenar en una manipulación y evaluar en otra»: los SBI salen de videos reales.
+- **Corridas (notebook 07), ablación acumulativa fijada antes de ver el test:** R0 = Deepfakes + BCE (línea base en el mismo entorno), R1 = + SBI, R2 = + Focal γ = 2, R3 = + JPEG (calidad 30–95, p = 0.5) y desenfoque (p = 0.3) en reales y falsos. Semillas 42–44, `data_seed` = 42. R3 es el modelo final por diseño, no por ser el mejor en el test: elegir la variante con el test sería sobreajustar al test.
+- **Estrés de compresión:** todas las corridas se evalúan además con el test recomprimido en JPEG calidad 50 (`<manipulación>@jpeg50`). Es compresión simulada sobre los recortes c23, no FF++ c40 (no está en el Dataset).
+- **Alternativas descartadas:**
+  - Entrenar con las cuatro manipulaciones: rompe el protocolo del curso y obliga a repetir el notebook 02 (~2 h). Queda como plan B en formato leave-one-out.
+  - Generar falsos con CycleGAN o Pix2Pix: cuesta horas de GPU y agregaría la huella de un generador más, justo lo que se quiere evitar.
+  - Una salida por parches supervisada con la máscara (estilo PatchGAN / Face X-ray): más código y más riesgo, sin evidencia de que haga falta.
+  - Un modelo más grande: cambiaría varias cosas a la vez y se perdería la comparación con las Fases B y C.
+- **Conceptos del curso:** aumento de datos y regularización (SBI, JPEG, desenfoque), generalización (la diapositiva «Sobre la generalización» de la clase de GANs), el detector como discriminador real/falso, campo receptivo efectivo (el ERF de `block12`, ~140 px, alcanza el borde de la cara), transfer learning y funciones de pérdida (Focal).
+- **IA:** el asistente propuso la intervención, escribió `sbi.py`, la integración en `data.py`/`train.py`/`analysis.py`, las pruebas (`tests/test_sbi.py`) y el notebook 07 (`tools/build_nb07.py`), y los probó de punta a punta con caras sintéticas en CPU. El grupo debe revisar los SBI sobre caras reales en `privado/sbi_ejemplos.png` antes de aceptar los resultados.
+
 ---
 
 ## Hallazgos de la Fase A (teardown) — `notebooks/kaggle/01_teardown_xception.ipynb`
@@ -127,6 +145,17 @@ Esto no prueba nada sobre el modelo entrenado. Es una predicción que la Fase C 
 - **Predicción:** relación no monótona. Valores de γ muy altos (5) ignoran casi todo el train, y el AUC in-domain caerá.
 
 ---
+
+### H-D1 · Deepfakes + SBI (Fase D, notebook 07), escrita antes de correr
+- **Mecanismo esperado:** los SBI no tienen la huella de Deepfakes, así que para separarlos de los reales el modelo tiene que usar el borde de mezcla y las inconsistencias de color y nitidez entre la cara y su entorno. Esas señales también existen en FaceSwap, Face2Face y NeuralTextures.
+- **Predicciones (R1 frente a R0, 3 semillas, AUC por video, IC 95 % por bootstrap pareado):**
+  1. FaceSwap supera 0.5 y el IC de Δ excluye 0 (positivo).
+  2. Face2Face y NeuralTextures mejoran o se mantienen: el IC de Δ no queda entero por debajo de 0.
+  3. Deepfakes (in-domain) no baja más de 0.01.
+  4. Con el Grad-CAM del notebook 06 sobre el checkpoint R1, la masa en el anillo del borde sube en los falsos.
+- **Secundarias:** R2 conserva la ganancia de Focal en NeuralTextures; R3 pierde menos AUC que R0 en el test `@jpeg50`.
+- **Qué la refutaría:** que FaceSwap siga por debajo de 0.5 en las 3 semillas, o que mejore sin que cambie el Grad-CAM (sería una mejora por otra vía, que habría que explicar).
+- **Resultado nulo posible:** con la máscara elíptica y sin landmarks, los SBI podrían ser demasiado fáciles (una señal de baja frecuencia en vez del borde), y el modelo aprendería ese atajo. Se diagnostica con el % de fáciles por época y con el Grad-CAM.
 
 ## Registro de experimentos
 
@@ -171,4 +200,5 @@ B-01 y B-02: `results/metrics/b01_bce_s42.json`, `b02_focal_g2_s42.json` y `comp
 - 2026-11-07: reestructuración de los notebooks (D-12): Dataset `ffpp-crops-g8` empaquetado y salidas sin caras; segundo incidente de licencia y nueva reescritura del historial (D-11); resultados B-01/B-02 registrados.
 - 2026-11-08: resultados de los notebooks 02–06 (B-03 a B-06, C-01); se detectó y corrigió que la semilla elegía los datos (D-13); `limpiar_caras.py` deja pasar tablas HTML y gráficos que solo nombran Grad-CAM.
 - 2026-11-08: notebooks 04 v3 y 05 v3 con las 12 corridas válidas (B-07…14, F-01).
+- 2026-11-22: Fase D (D-14, H-D1): `sbi.py`, `Config.train_fakes`/`robust_aug`/`stress_jpeg`, `analysis` por grupo de corridas, `tests/test_sbi.py` y notebook 07 (`tools/build_nb07.py`), en la rama `feature/sbi-robustez`.
 - 2026-10-21: se integraron los notebooks E2 (`notebooks/kaggle/01–03`, `src/kaggle_e2/`, `results/teardown/`) y este cuaderno; la normalización pasó a 0.5 (D-02).
