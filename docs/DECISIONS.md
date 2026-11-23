@@ -13,7 +13,7 @@ Cada entrada registra **qué** se decidió, **qué alternativas** había, **por 
 > - Fase A: completa para todo lo que no depende de datos (parámetros, FLOPs, RF, separable vs. estándar, latencia y memoria en CPU). Pendiente en Kaggle: latencia y memoria en GPU, activaciones sobre caras, ERF sobre caras y Grad-CAM.
 > - Fase B: primera corrida real BCE vs. Focal (γ=2) ejecutada en Kaggle T4 el 28/10 (B-01, B-02; `results/metrics/`). Focal no mejora la robustez cross-manipulation.
 > - 07–08/11: corrida oficial del pipeline nuevo (02 → 06; B-03 a B-06, C-01). 08/11: semillas 43/44 repetidas tras D-13 y análisis final (F-01): Focal mejora solo NeuralTextures (+0.04 con cualquier γ > 0); FaceSwap y Face2Face sin efecto.
-> - 22/11: **Fase D** (D-14, H-D1): para que el detector cumpla el propósito de generalizar, se agregan falsos sintéticos (SBI) fabricados con los reales de train, más Focal γ = 2 y aumentos de compresión. Notebook 07 implementado y probado con datos sintéticos; pendiente de correr en Kaggle.
+> - 22/11: **Fase D** (D-14, H-D1): para que el detector cumpla el propósito de generalizar, se agregan falsos sintéticos (SBI) fabricados con los reales de train, más Focal γ = 2 y aumentos de compresión. Resultado (notebook 07): H-D1 se cumple; con R3, FaceSwap pasa de 0.26 a 0.76 y Face2Face de 0.69 a 0.85, sin perder Deepfakes y con robustez a JPEG. Pendiente: Grad-CAM (predicción 4).
 
 ## Índice de decisiones
 
@@ -156,6 +156,23 @@ Esto no prueba nada sobre el modelo entrenado. Es una predicción que la Fase C 
 - **Secundarias:** R2 conserva la ganancia de Focal en NeuralTextures; R3 pierde menos AUC que R0 en el test `@jpeg50`.
 - **Qué la refutaría:** que FaceSwap siga por debajo de 0.5 en las 3 semillas, o que mejore sin que cambie el Grad-CAM (sería una mejora por otra vía, que habría que explicar).
 - **Resultado nulo posible:** con la máscara elíptica y sin landmarks, los SBI podrían ser demasiado fáciles (una señal de baja frecuencia en vez del borde), y el modelo aprendería ese atajo. Se diagnostica con el % de fáciles por época y con el Grad-CAM.
+
+### Resultado H-D1 (notebook 07, 22/11/2026; `results/metrics/fase_d/`)
+AUC por video, media ± desv. de 3 semillas. Δ frente a R0 con IC 95 % (bootstrap pareado); * = el IC excluye 0.
+
+| Test | R0 (BCE) | R1 (+SBI) | R2 (+Focal) | R3 (+JPEG/blur, final) | Δ R3 − R0 |
+|---|---|---|---|---|---|
+| Deepfakes | 0.997 | 0.995 | 0.997 | 0.998 | +0.001 |
+| Face2Face | 0.692 | 0.829 | 0.864 | 0.847 | +0.155 * |
+| FaceSwap | 0.260 | 0.672 | 0.647 | 0.755 | +0.495 * |
+| NeuralTextures | 0.761 | 0.861 | 0.891 | 0.785 | +0.024 |
+| FaceSwap@jpeg50 | 0.318 | 0.537 | 0.517 | 0.680 | +0.362 * |
+| Face2Face@jpeg50 | 0.633 | 0.600 | 0.610 | 0.748 | +0.115 * |
+| NeuralTextures@jpeg50 | 0.670 | 0.595 | 0.635 | 0.694 | +0.025 |
+
+- **Predicciones 1–3 (R1 frente a R0): se cumplen.** FaceSwap 0.260 → 0.672, Δ +0.41 [0.35, 0.47]; Face2Face +0.14 [0.09, 0.18]; NeuralTextures +0.10 [0.06, 0.14]; Deepfakes −0.002 [−0.007, 0.001]. La predicción 4 (Grad-CAM) está pendiente.
+- **Secundarias.** R2 suma Focal: NeuralTextures sube a 0.891 (Δ +0.13 frente a R0). R1 y R2 son **frágiles a la compresión**: con JPEG 50, NeuralTextures y Deepfakes caen frente a R0 (R1: −0.075* y −0.038*). Los SBI enseñan señales de alta frecuencia que la compresión borra. R3 lo corrige: es el único que mejora o empata en todo el test `@jpeg50`. El costo es NeuralTextures limpio (0.785, frente a 0.891 en R2) y más variación entre semillas en FaceSwap (± 0.056).
+- **Mecanismo:** % de fáciles en la última época: R0 98 %, R1 92 %, R2 65 %, R3 37 %. Los SBI y los aumentos mantienen ejemplos difíciles durante todo el entrenamiento.
 
 ## Registro de experimentos
 
