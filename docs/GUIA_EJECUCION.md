@@ -16,6 +16,8 @@ Orden (D-12):
 5. **`04_barrido_gamma_semillas.ipynb`**. Inputs: `ffpp-crops-g8` y, opcionalmente, el output del 03 (reutiliza `bce_s42` y `focal_g2_s42`). ~10 min por corrida; si se corta, agregar su propio output como input y volver a guardar.
 6. **`06_diagnostico_gradcam.ipynb`**. Inputs: `ffpp-crops-g8` y el output del 04 (checkpoints y `preds_bce_s42.csv.gz`).
 7. **`05_analisis_final.ipynb`** (CPU). Inputs: outputs del 03/04. También corre en local con `results/metrics/`.
+8. **`07_sbi_generalizacion.ipynb`** (Fase D). Input: `ffpp-crops-g8`. Entrena R0–R3 × 3 semillas y guarda en `checkpoints/` los de la semilla 42.
+9. **`08_gradcam_fase_d.ipynb`** (Fase D, predicción 4 de H-D1). Inputs: `ffpp-crops-g8` y el output del 07 (`checkpoints/*_s42.pt` y `preds_r0_bce_s42.csv.gz`). GPU T4. Descargar `resultados/gradcam_fase_d_*` a `results/metrics/fase_d/`; `privado/` no se descarga.
 
 `train.run` guarda, además del JSON, `preds_<corrida>.csv.gz` (probabilidad por frame de test: solo IDs y números), que usan el 05 (bootstrap) y el 06 (selección de casos). Para llevar al repo los números de una corrida nueva, copiar `resultados/runs/*.json` y `comparacion_bce_vs_focal.csv` a `results/metrics/`.
 

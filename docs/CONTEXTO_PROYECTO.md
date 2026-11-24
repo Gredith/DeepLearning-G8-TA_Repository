@@ -223,8 +223,8 @@ Pregunta: si la pérdida no generaliza, ¿lo hacen los datos? Se agregan falsos 
 
 **Pendiente:**
 - Llevar los resultados (incluida la Fase D) al informe y al extended abstract.
-- Fase D: Grad-CAM del checkpoint R1 (predicción 4 de H-D1; R3 como complemento), adaptando el notebook 06, revisar `privado/sbi_ejemplos.png` y sincronizar el notebook 07 ejecutado (limpio) o su `entorno.json`.
-- Tras el merge a `main`: cambiar `BRANCH` del notebook 07 (`tools/build_nb07.py`) a `main`.
+- Fase D: correr en Kaggle el notebook 08 (Grad-CAM de R0–R3; predicción 4 de H-D1 con R1), revisar `privado/sbi_ejemplos.png` y sincronizar el notebook 07 ejecutado (limpio) o su `entorno.json`.
+- Tras el merge a `main`: cambiar `BRANCH` de los notebooks 07 y 08 (`tools/build_nb07.py`, `tools/build_nb08.py`) a `main`.
 - Latencia y memoria en GPU T4; c40 y DFDC quedan como trabajo futuro.
 
 **Tabla de resultados** (entrenando en Deepfakes c23; AUC por video; media ± desviación entre las semillas 42, 43 y 44; notebook 05 v3):
