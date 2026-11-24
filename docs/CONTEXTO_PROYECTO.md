@@ -1,13 +1,13 @@
 # Contexto del proyecto · Grupo 8 · Deep Learning PUCP 2026-2
 
 > Documento de contexto para un asistente (Claude) que ayude a redactar o corregir entregables del proyecto: informe, extended abstract, póster o presentaciones.
-> Fuente de verdad: el repositorio del grupo (`docs/DECISIONS.md`, `docs/E3_Tareas_programacion.md`, `results/teardown/`, `results/metrics/`). Estado al **08/11/2026**.
+> Fuente de verdad: el repositorio del grupo (`docs/DECISIONS.md`, `docs/E3_Tareas_programacion.md`, `results/teardown/`, `results/metrics/`). Estado al **24/11/2026**.
 
 ---
 
 ## 0. Reglas para el asistente
 
-1. **No inventes resultados.** Las únicas cifras reales son las de la Fase A (sección 6), la primera corrida (sección 6b) y las del pipeline nuevo (sección 6c: γ ∈ {0, 1, 2, 5} × 3 semillas con IC 95 % por bootstrap, y Grad-CAM por regiones con la semilla 42). Todavía **no hay** mediciones de latencia en GPU, c40 ni DFDC. Si un documento pide esos resultados, deja el espacio marcado como pendiente.
+1. **No inventes resultados.** Las únicas cifras reales son las de la Fase A (sección 6), la primera corrida (sección 6b) y las del pipeline nuevo (sección 6c: γ ∈ {0, 1, 2, 5} × 3 semillas con IC 95 % por bootstrap, y Grad-CAM por regiones con la semilla 42) y las de la Fase D (sección 6d: R0–R3 × 3 semillas). El Grad-CAM de la Fase D todavía **no** está medido. Todavía **no hay** mediciones de latencia en GPU, c40 ni DFDC. Si un documento pide esos resultados, deja el espacio marcado como pendiente.
 2. **Usa los valores de este documento, no los de la propuesta E1 original.** La E1 (7/10) decía «20–30 frames», «MTCNN o RetinaFace», «224×224 o 299×299», «T4/P100» y «200–300 videos por clase». **Todo eso quedó superado.** Los valores vigentes están en la sección 4.
 3. Los entregables al workshop (abstract y póster) se escriben **en inglés**. Los del curso (E1, E2, cuaderno de decisiones) se escriben **en español**.
 4. Escribe γ (gamma), no «y». Escribe «γ ∈ {0, 1, 2, 5}», nunca «γ ≤ {…}».
@@ -184,9 +184,26 @@ Kaggle T4, Dataset `ffpp-crops-g8`. Archivos: `results/metrics/e3_*.json`, `barr
 - **FaceSwap < 0.5** en las 12 corridas (0.19–0.33).
 - **Grad-CAM (06, C-01):** cuando el modelo responde *falso*, la masa está en el interior de la cara (0.67–0.95, muy concentrada); cuando responde *real*, sobre todo fuera de la cara (0.31–0.62, dispersa). Los FaceSwap no detectados se ven como reales: no aparece la evidencia del interior que el modelo aprendió de Deepfakes. No se confirma la hipótesis del «borde de mezcla».
 
+## 6d. Fase D (22/11): Deepfakes + Self-Blended Images (notebook 07)
+
+Pregunta: si la pérdida no generaliza, ¿lo hacen los datos? Se agregan falsos sintéticos (SBI): cada uno se fabrica en memoria a partir de un frame real de train, mezclando una copia alterada (color, nitidez, leve desalineado) dentro de una máscara elíptica de la cara. El detector sigue sin ver Face2Face, FaceSwap ni NeuralTextures. Ablación acumulativa fijada antes de ver el test (D-14, H-D1): R0 = Deepfakes + BCE; R1 = + SBI; R2 = + Focal γ = 2; R3 = + JPEG (calidad 30–95) y desenfoque. Semillas 42–44. Archivos: `results/metrics/fase_d/`.
+
+| AUC por video, media ± desv. | Deepfakes | Face2Face | FaceSwap | NeuralTextures | FS @ JPEG 50 | Fáciles últ. época |
+|---|---|---|---|---|---|---|
+| R0 (BCE, = Fase B) | 0.997 ± 0.001 | 0.692 ± 0.017 | 0.260 ± 0.059 | 0.761 ± 0.017 | 0.318 | 98 % |
+| R1 (+ SBI) | 0.995 ± 0.006 | 0.829 ± 0.041 | 0.672 ± 0.014 | 0.861 ± 0.027 | 0.537 | 92 % |
+| R2 (+ Focal γ = 2) | 0.997 ± 0.003 | 0.864 ± 0.011 | 0.647 ± 0.015 | 0.891 ± 0.017 | 0.517 | 65 % |
+| R3 (+ JPEG/desenfoque, final) | 0.998 ± 0.001 | 0.847 ± 0.040 | 0.755 ± 0.056 | 0.785 ± 0.049 | 0.680 | 37 % |
+
+- **Δ R3 − R0 (IC 95 %, bootstrap pareado):** FaceSwap +0.495 [0.438, 0.553]; Face2Face +0.155 [0.108, 0.203]; NeuralTextures +0.024 (IC incluye 0); Deepfakes sin pérdida. Con JPEG 50, FaceSwap +0.362 y Face2Face +0.115 (IC excluyen 0).
+- **H-D1:** predicciones 1–3 se cumplen (R1 frente a R0: FaceSwap +0.41, Face2Face +0.14, NeuralTextures +0.10, Deepfakes sin cambio). La predicción 4 (Grad-CAM con más masa en el borde) **está pendiente**.
+- R1 y R2 son frágiles a la compresión (pierden en NeuralTextures y Deepfakes con JPEG 50); R3 lo corrige a costa de NeuralTextures limpio (0.785 frente a 0.891 en R2).
+- R3 es el modelo final por diseño, no por ser el mejor en el test.
+- **Lectura para el póster:** la palanca de la generalización fueron los datos (SBI), no la pérdida. Focal sigue sumando solo en NeuralTextures. Responde la pregunta de discusión: re-ponderar ejemplos difíciles no basta; forzar al detector a ver artefactos de mezcla sí.
+
 ---
 
-## 7. Estado y pendientes (07/11/2026)
+## 7. Estado y pendientes (24/11/2026)
 
 **Hecho:**
 - Acceso a FF++ y muestra verificada en Kaggle.
@@ -202,8 +219,12 @@ Kaggle T4, Dataset `ffpp-crops-g8`. Archivos: `results/metrics/e3_*.json`, `barr
 
 - 08/11: 04 v3 (semillas 43–44 válidas) y 05 v3 (media ± desv. e IC 95 %): sección 6c.
 
+- 22/11: Fase D (notebook 07, R0–R3 × 3 semillas): sección 6d. 24/11: revisión de la rama y textos de la demo actualizados.
+
 **Pendiente:**
-- Llevar los resultados al informe y al extended abstract.
+- Llevar los resultados (incluida la Fase D) al informe y al extended abstract.
+- Fase D: Grad-CAM del checkpoint R1 (predicción 4 de H-D1; R3 como complemento), adaptando el notebook 06, revisar `privado/sbi_ejemplos.png` y sincronizar el notebook 07 ejecutado (limpio) o su `entorno.json`.
+- Tras el merge a `main`: cambiar `BRANCH` del notebook 07 (`tools/build_nb07.py`) a `main`.
 - Latencia y memoria en GPU T4; c40 y DFDC quedan como trabajo futuro.
 
 **Tabla de resultados** (entrenando en Deepfakes c23; AUC por video; media ± desviación entre las semillas 42, 43 y 44; notebook 05 v3):
@@ -226,7 +247,7 @@ Si hay una sola semilla, se indica. Con diferencias pequeñas no se sacan conclu
 | `E1 _Propuesta de tema_Grupo_8.md` y `E1_DeepLearning_Grupo8.pdf` | Propuesta y presentación E1 (7/10) | Histórico; contiene valores ya superados (ver regla 2) |
 | `E2_Tareas_programacion.md` | Registro de tareas E2 | Histórico |
 | `E3_Tareas_programacion.md` | Plan y pendientes hasta el E3 (11/11) | Vivo |
-| `DECISIONS.md` | Cuaderno de decisiones (D-01…D-12), hipótesis, registro de experimentos y uso de IA | Vivo, fuente de verdad |
+| `DECISIONS.md` | Cuaderno de decisiones (D-01…D-14), hipótesis, registro de experimentos y uso de IA | Vivo, fuente de verdad |
 | `WAIMLAp2026_Extended_Abstract_Grupo8_v2.docx` (Drive del grupo) | Extended abstract (EN, 2 págs.): Introduction, Methodology, Results and Discussion, Conclusions, References [1]–[8] | Alineado al 21/10; falta incorporar B-01/B-02 y los resultados finales |
 | `WAIMLAp2026_Poster_Grupo8_v2.pptx` (Drive del grupo) | Póster A0 vertical (EN): Motivation, Objectives, Methodology (+ Fig. 1 pipeline), Results & Discussion (+ Table 1 y recuadro Grad-CAM), Conclusions, References, Acknowledgments, QR | Alineado al 21/10; faltan la Tabla 1, el recuadro Grad-CAM (sin caras de FF++: usar las métricas por región del notebook 06) y el QR |
 | Informe final E3 (Drive del grupo) | 4–8 págs., plantilla WAIMLAp | No se versiona en GitHub |
@@ -245,7 +266,7 @@ Si hay una sola semilla, se indica. Con diferencias pequeñas no se sacan conclu
 
 ## 9. Uso responsable
 
-- **Datos:** rostros de personas reales, solo para investigación académica. No se redistribuyen, no se intenta identificar a nadie y no se generan deepfakes nuevos. FF++ y los recortes van en Kaggle Datasets privados. En el repositorio público solo hay código, splits (metadatos públicos) y tablas numéricas, sin figuras con caras. **Tampoco se usan figuras con caras de FF++ en el informe, el abstract ni el póster** (son redistribución): para Grad-CAM se reportan métricas por región o esquemas propios.
+- **Datos:** rostros de personas reales, solo para investigación académica. No se redistribuyen, no se intenta identificar a nadie y no se generan deepfakes nuevos de personas: los SBI de la Fase D se fabrican en memoria durante el entrenamiento, mezclando un frame real consigo mismo, y no se guardan ni se publican (la figura de control va a `privado/`). FF++ y los recortes van en Kaggle Datasets privados. En el repositorio público solo hay código, splits (metadatos públicos) y tablas numéricas, sin figuras con caras. **Tampoco se usan figuras con caras de FF++ en el informe, el abstract ni el póster** (son redistribución): para Grad-CAM se reportan métricas por región o esquemas propios.
 - **IA:** se usó Claude para explorar temas, redactar, generar código (teardown, pipeline, entrenamiento, focal loss, Grad-CAM) y revisar el avance. El grupo revisó y decidió cada punto. El detalle está en `DECISIONS.md`.
 
 ---
