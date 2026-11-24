@@ -7,6 +7,10 @@ Uso típico (en Kaggle):
 
 Todo lo que no es gamma queda fijo entre corridas (arquitectura, datos, splits,
 semilla, épocas, optimizador, augmentación): D-06 en docs/DECISIONS.md.
+
+Fase D (D-14): `train_fakes` elige de dónde salen los falsos de train ("deepfakes" = protocolo B,
+"sbi", "deepfakes+sbi"), `robust_aug` agrega JPEG y desenfoque, y `stress_jpeg` evalúa además el test
+recomprimido. Con los valores por defecto el comportamiento es exactamente el de las corridas B.
 Las rutas por defecto son relativas a la raíz del repo (los notebooks hacen chdir a ROOT).
 """
 import json
@@ -52,6 +56,13 @@ class Config:
     num_workers: int = 2
     amp: bool = True
     easy_threshold: float = 0.9      # p_t > 0.9 = ejemplo "fácil" (diagnóstico de la hipótesis)
+    # Fase D (D-14). Por defecto = protocolo B sin cambios.
+    variant: str = "B"               # etiqueta del grupo de corridas (R0, R1, R2, R3) para el análisis
+    train_fakes: str = "deepfakes"   # "deepfakes" | "sbi" | "deepfakes+sbi"
+    sbi_prob: float = 0.5            # en "deepfakes+sbi": fracción de los falsos de train que son SBI en cada época
+    sbi_val_seed: int = 1234         # SBI de val deterministas (misma val para todas las corridas)
+    robust_aug: bool = False         # JPEG (q 30–95, p 0.5) y desenfoque (p 0.3) en reales y falsos de train
+    stress_jpeg: tuple = ()          # p. ej. (50,): evalúa también el test recomprimido con JPEG calidad 50
     extra: dict = field(default_factory=dict)
 
 
@@ -62,8 +73,9 @@ def set_seed(seed):
     os.environ["PYTHONHASHSEED"] = str(seed)
 
 
-def _loader(items, train, cfg):
-    ds = D.FrameDataset(items, D.train_transform(cfg.img_size) if train else D.eval_transform(cfg.img_size))
+def _loader(items, train, cfg, jpeg_quality=None, fixed_seed=None):
+    tf = D.train_transform(cfg.img_size) if train else D.eval_transform(cfg.img_size, jpeg_quality)
+    ds = D.FrameDataset(items, tf, fixed_seed=fixed_seed, sbi_prob=cfg.sbi_prob, robust=train and cfg.robust_aug)
     g = torch.Generator().manual_seed(cfg.seed)
     return DataLoader(ds, batch_size=cfg.batch_size, shuffle=train, num_workers=cfg.num_workers,
                       pin_memory=torch.cuda.is_available(), generator=g, drop_last=False)
@@ -109,14 +121,16 @@ def run(cfg: Config, device=None, verbose=True):
     tr_pairs = D.subset_pairs(D.load_pairs(cfg.splits_dir, "train"), cfg.n_train_pairs, cfg.data_seed)
     va_pairs = D.subset_pairs(D.load_pairs(cfg.splits_dir, "val"), cfg.n_val_pairs, cfg.data_seed)
     te_pairs = D.subset_pairs(D.load_pairs(cfg.splits_dir, "test"), cfg.n_test_pairs, cfg.data_seed)
-    tr_items, tr_miss = D.build_items(cfg.crops_dir, tr_pairs, cfg.train_methods, max_frames=cfg.frames_per_video)
-    va_items, va_miss = D.build_items(cfg.crops_dir, va_pairs, cfg.train_methods, max_frames=cfg.frames_per_video)
+    tr_items, tr_miss = D.build_train_items(cfg.crops_dir, tr_pairs, cfg.train_fakes, cfg.train_methods,
+                                            max_frames=cfg.frames_per_video)
+    va_items, va_miss = D.build_train_items(cfg.crops_dir, va_pairs, cfg.train_fakes, cfg.train_methods,
+                                            max_frames=cfg.frames_per_video, val=True)
     assert tr_items and va_items, f"No hay recortes en {cfg.crops_dir} para los splits pedidos"
     data_info = {"train": D.describe(tr_items) | {"videos_faltantes": tr_miss},
                  "val": D.describe(va_items) | {"videos_faltantes": va_miss}}
     if verbose:
         print(json.dumps(data_info, indent=1))
-    tr_loader, va_loader = _loader(tr_items, True, cfg), _loader(va_items, False, cfg)
+    tr_loader, va_loader = _loader(tr_items, True, cfg), _loader(va_items, False, cfg, fixed_seed=cfg.sbi_val_seed)
 
     model = build_model(pretrained=True, num_classes=1).to(device)
     criterion = build_loss(cfg.gamma, cfg.alpha)
@@ -164,19 +178,21 @@ def run(cfg: Config, device=None, verbose=True):
     # Evaluación final con el mejor checkpoint: in-domain y cross-manipulation (Fase C)
     model.load_state_dict(torch.load(best_path, map_location=device)["model"])
     test, pred_rows = {}, []
-    for m in cfg.test_methods:
-        items, miss = D.build_items(cfg.crops_dir, te_pairs, [m], max_frames=cfg.frames_per_video)
-        if not any(y == 1 for _, y, _ in items):
-            test[m] = {"nota": "sin videos de test descargados"}
-            continue
-        probs, labels, vkeys = predict(model, _loader(items, False, cfg), device)
-        test[m] = metrics(probs, labels, vkeys) | {"videos_faltantes": miss}
-        # predicciones por frame (solo IDs y probabilidades, sin imágenes): permiten IC por bootstrap y Grad-CAM emparejado
-        pred_rows += [{"test": m, "video": v, "frame": Path(p).stem, "label": int(l), "p_fake": float(q)}
-                      for (p, _, _), v, l, q in zip(items, vkeys, labels, probs)]
-        if verbose:
-            print(f"  test {m:15s} AUC frame={test[m].get('auc_frame', float('nan')):.4f} "
-                  f"video={test[m].get('auc_video', float('nan')):.4f}")
+    for q in (None, *cfg.stress_jpeg):     # None = test c23 tal cual; q = recomprimido con JPEG (estrés simulado)
+        for m in cfg.test_methods:
+            name = m if q is None else f"{m}@jpeg{q}"
+            items, miss = D.build_items(cfg.crops_dir, te_pairs, [m], max_frames=cfg.frames_per_video)
+            if not any(y == 1 for _, y, _ in items):
+                test[name] = {"nota": "sin videos de test descargados"}
+                continue
+            probs, labels, vkeys = predict(model, _loader(items, False, cfg, jpeg_quality=q), device)
+            test[name] = metrics(probs, labels, vkeys) | {"videos_faltantes": miss}
+            # predicciones por frame (solo IDs y probabilidades, sin imágenes): IC por bootstrap y Grad-CAM emparejado
+            pred_rows += [{"test": name, "video": v, "frame": Path(p).stem, "label": int(l), "p_fake": float(pr)}
+                          for (p, _, _), v, l, pr in zip(items, vkeys, labels, probs)]
+            if verbose:
+                print(f"  test {name:20s} AUC frame={test[name].get('auc_frame', float('nan')):.4f} "
+                      f"video={test[name].get('auc_video', float('nan')):.4f}")
     result = {"config": asdict(cfg), "data": data_info, "history": history, "test": test,
               "best_val_auc_frame": best_auc, "device": device,
               "gpu": torch.cuda.get_device_name(0) if device == "cuda" else None}

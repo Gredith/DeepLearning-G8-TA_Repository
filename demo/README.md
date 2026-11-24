@@ -16,7 +16,9 @@ La interfaz está en **español e inglés**: selector 🌐 arriba a la derecha; 
 | Coherencia | ✓ si la decisión coincide con lo medido en el test (falso ↔ interior, real ↔ fuera); ⚠ si no |
 | Acuerdo | aviso si BCE y Focal dan decisiones distintas |
 
-Los umbrales del patrón salen de los rangos del notebook 06 (respuesta «falso»: interior 0.67–0.95; respuesta «real»: fuera 0.31–0.62). La sección «Cómo interpretar los resultados» explica cada elemento de las tarjetas. Aparte, «Qué encontró el proyecto y límites de la demo» resume en dos tarjetas la hipótesis frente al resultado (interior, no borde de la mezcla; FaceSwap se escapa; Focal mejora solo NeuralTextures) y los límites (fotos fuera de la distribución de FF++ c23; un caso aislado no prueba nada).
+Los umbrales del patrón salen de los rangos del notebook 06 (respuesta «falso»: interior 0.67–0.95; respuesta «real»: fuera 0.31–0.62). La sección «Cómo interpretar los resultados» explica cada elemento de las tarjetas e incluye una nota sobre el umbral 0.5 frente al AUC: con ese umbral, el modelo BCE marca como falso el 97 % de los Deepfakes del test, pero solo el 21 % de NeuralTextures, el 12 % de Face2Face y el 1 % de FaceSwap, aunque los AUC de NeuralTextures y Face2Face sean 0.76 y 0.71.
+
+**Verificación (24/11):** con recortes del test de FF++, la demo reproduce las probabilidades de `preds_*.csv.gz` del notebook 04 (80 frames, diferencia máxima 0.008, ninguna decisión distinta) si se marca «La imagen ya es un recorte de la cara». Aparte, «Qué encontró el proyecto y límites de la demo» resume en tres tarjetas la hipótesis frente al resultado (interior, no borde de la mezcla; FaceSwap se escapa; Focal mejora solo NeuralTextures), la Fase D (con falsos sintéticos SBI y aumentos de compresión FaceSwap sube a 0.76 y Face2Face a 0.85; ese modelo no está en la demo) y los límites (fotos fuera de la distribución de FF++ c23; un caso aislado no prueba nada).
 
 ## Requisitos
 
@@ -49,7 +51,7 @@ Botones *Analizar* y *Limpiar* bajo la imagen. En *Opciones*: «La imagen ya es 
 1. **Foto real de un integrante** (con su consentimiento). Lo esperado: «real» y masa sobre todo fuera de la cara. Probarla antes: una foto de cámara está fuera de la distribución de FF++ c23 y el modelo puede equivocarse; si pasa, sirve para hablar del cambio de distribución.
 2. **Deepfake detectado:** masa concentrada en el interior de la cara.
 3. **FaceSwap no detectado:** el modelo responde «real»; no aparece la evidencia del interior que aprendió de Deepfakes.
-4. **Cierre:** Focal cambia poco el mapa, igual que en los números (mejora solo NeuralTextures, +0.04).
+4. **Cierre:** Focal cambia poco el mapa, igual que en los números (mejora solo NeuralTextures, +0.04). Lo que sí generalizó fue cambiar los datos (Fase D, tarjeta verde): FaceSwap 0.26 → 0.76.
 
 ## Licencia y privacidad
 

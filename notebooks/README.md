@@ -10,6 +10,7 @@ Los notebooks ejecutables están en [`kaggle/`](kaggle/):
 | `04_barrido_gamma_semillas.ipynb` | Barrido γ ∈ {0, 1, 2, 5} × semillas {42, 43, 44} con `ffpp-crops-g8`; reanudable usando su output anterior como input. |
 | `05_analisis_final.ipynb` | Sin GPU ni datos: tabla final (media ± desv.), IC 95 % por bootstrap de Δ AUC y figuras del informe, desde los JSON y predicciones del 03/04. |
 | `06_diagnostico_gradcam.ipynb` | Grad-CAM BCE vs. Focal (selección D-10) con figuras solo en `privado/` y métricas numéricas por región para explicar FaceSwap < 0.5. |
+| `07_sbi_generalizacion.ipynb` | Fase D (D-14): Deepfakes + SBI (falsos sintéticos hechos con los reales), Focal γ = 2 y aumentos de compresión; R0–R3 × semillas {42, 43, 44}, IC 95 % frente a R0 y estrés JPEG. Usa `ffpp-crops-g8`. Lo genera `tools/build_nb07.py`. |
 | `robustez-de-detectores-de-deepfakes-ta-dl.ipynb` | Exploración preliminar; no sustituye el protocolo experimental. |
 
 Los notebooks `01`–`03` importan funciones de `src/kaggle_e2/`. Para orden, rutas de datos, dependencias y comandos, consulta la [guía de ejecución](../docs/GUIA_EJECUCION.md). El estado de evidencia está en [E2](../docs/E2_Tareas_programacion.md) y las decisiones experimentales en [DECISIONS](../docs/DECISIONS.md).
