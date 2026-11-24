@@ -98,6 +98,14 @@ T = {
       <li><b>Focal Loss</b> cambia poco el mapa, igual que en los números: solo mejora NeuralTextures (+0.04, IC 95 % sin el 0).</li>
     </ul>
   </div>
+  <div class="hz-card hz-fix">
+    <div class="hz-head">🧪 Fase D: lo que sí generalizó</div>
+    <p>La palanca fueron los <b>datos</b>, no la pérdida. Se agregaron falsos sintéticos (<i>Self-Blended Images</i>: un frame real mezclado consigo mismo) y aumentos de compresión, sin ver otras manipulaciones.</p>
+    <ul>
+      <li><b>FaceSwap</b> pasa de 0.26 a <b>0.76</b> y Face2Face de 0.69 a 0.85 (3 semillas, IC 95 % sin el 0), sin perder Deepfakes.</li>
+      <li>Esta demo usa los modelos de la Fase B (BCE y Focal); el modelo de la Fase D no está incluido y su Grad-CAM aún no se ha medido.</li>
+    </ul>
+  </div>
   <div class="hz-card hz-lim">
     <div class="hz-head">⚠ Límites</div>
     <ul>
@@ -112,6 +120,10 @@ T = {
 <p><b>Decisión.</b> <span class="chip fake">FALSO</span> si la probabilidad de falso es ≥ 0.5;
 <span class="chip real">REAL</span> si es menor. La confianza indica qué tan lejos está del umbral:
 <i>alta</i> (&lt; 0.1 o &gt; 0.9), <i>media</i> o <i>cerca del umbral</i> (0.3–0.7).</p>
+<p class="nota-auc"><b>Umbral 0.5 ≠ AUC.</b> Los AUC del proyecto miden si los falsos puntúan más alto que los reales, sin fijar umbral.
+Con el umbral 0.5 de esta demo, el modelo BCE marca como FALSO el 97 % de los Deepfakes, pero solo el 21 % de NeuralTextures (AUC 0.76),
+el 12 % de Face2Face (AUC 0.71) y el 1 % de FaceSwap; el 95 % de los reales sale REAL (test de FF++, semilla 42).
+Que otras manipulaciones salgan «real» es el comportamiento medido del modelo, no un error de la demo.</p>
 <p><b>Mapa de calor (Grad-CAM, capa <code>block12</code>).</b> Resalta las zonas que empujan la decisión hacia
 «falso»: <span class="sw" style="background:#d7191c"></span> rojo = mucha influencia,
 <span class="sw" style="background:#2c7bb6"></span> azul = poca. Muestra <i>dónde</i> mira el modelo, no <i>por qué</i>.</p>
@@ -176,6 +188,14 @@ la masa interior es 0.67–0.95 y muy concentrada; cuando responde «real», la 
       <li><b>Focal loss</b> barely changes the map, just as in the numbers: it only improves NeuralTextures (+0.04, 95% CI excludes 0).</li>
     </ul>
   </div>
+  <div class="hz-card hz-fix">
+    <div class="hz-head">🧪 Phase D: what did generalize</div>
+    <p>The lever was the <b>data</b>, not the loss. We added synthetic fakes (<i>Self-Blended Images</i>: a real frame blended with itself) and compression augmentation, without seeing other manipulations.</p>
+    <ul>
+      <li><b>FaceSwap</b> rises from 0.26 to <b>0.76</b> and Face2Face from 0.69 to 0.85 (3 seeds, 95% CI excludes 0), with no loss on Deepfakes.</li>
+      <li>This demo uses the Phase B models (BCE and focal); the Phase D model is not included and its Grad-CAM has not been measured yet.</li>
+    </ul>
+  </div>
   <div class="hz-card hz-lim">
     <div class="hz-head">⚠ Limits</div>
     <ul>
@@ -190,6 +210,10 @@ la masa interior es 0.67–0.95 y muy concentrada; cuando responde «real», la 
 <p><b>Decision.</b> <span class="chip fake">FAKE</span> if the probability of fake is ≥ 0.5;
 <span class="chip real">REAL</span> otherwise. Confidence says how far it is from the threshold:
 <i>high</i> (&lt; 0.1 or &gt; 0.9), <i>medium</i>, or <i>near the threshold</i> (0.3–0.7).</p>
+<p class="nota-auc"><b>Threshold 0.5 ≠ AUC.</b> The project's AUCs measure whether fakes score higher than reals, with no fixed threshold.
+At this demo's 0.5 threshold, the BCE model flags 97% of Deepfakes as FAKE, but only 21% of NeuralTextures (AUC 0.76),
+12% of Face2Face (AUC 0.71) and 1% of FaceSwap; 95% of reals come out REAL (FF++ test, seed 42).
+Other manipulations coming out “real” is the model's measured behaviour, not a demo bug.</p>
 <p><b>Heat map (Grad-CAM, layer <code>block12</code>).</b> Highlights the areas that push the decision towards
 “fake”: <span class="sw" style="background:#d7191c"></span> red = strong influence,
 <span class="sw" style="background:#2c7bb6"></span> blue = weak. It shows <i>where</i> the model looks, not <i>why</i>.</p>
@@ -235,12 +259,14 @@ CSS = """
 .res-coh.ok::before { content:"✓ "; color:var(--c-real); font-weight:700; }
 .res-coh.no::before { content:"⚠ "; color:var(--c-int); font-weight:700; }
 .guia p { margin:0 0 8px; line-height:1.45; }
+.nota-auc { padding:8px 12px; border-radius:8px; background:rgba(232,131,58,0.10); border-left:3px solid rgba(232,131,58,0.7); }
 .hallazgos { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
 .hz-card { border-radius:10px; padding:12px 16px; line-height:1.45; }
 .hz-card p { margin:0 0 6px; } .hz-card ul { margin:4px 0 0; padding-left:1.2em; } .hz-card li { margin-bottom:4px; }
 .hz-head { font-weight:700; margin-bottom:8px; }
 .hz-find { background:rgba(60,125,217,0.10); border:1px solid rgba(60,125,217,0.35); }
 .hz-lim { background:rgba(232,131,58,0.10); border:1px solid rgba(232,131,58,0.40); }
+.hz-fix { background:rgba(46,160,90,0.10); border:1px solid rgba(46,160,90,0.40); }
 .cap-wrap { padding:0 !important; min-height:0 !important; margin-bottom:calc(-1 * var(--layout-gap, 12px) + 4px) !important; }
 .cap-wrap > div { min-height:0 !important; }
 .cap { font-size:0.85em; font-weight:600; opacity:0.85; margin:0; line-height:1.3; }
