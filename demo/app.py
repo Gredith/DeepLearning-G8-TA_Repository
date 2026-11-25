@@ -1,16 +1,20 @@
-"""Demo en vivo: detector Xception con Grad-CAM, BCE vs. Focal Loss (γ = 2). Interfaz en español e inglés.
+"""Demo en vivo: detector Xception con Grad-CAM, modelos de la Fase B y de la Fase D. Interfaz en español e inglés.
 
 Sube una imagen; la app detecta la cara más grande con MTCNN, la recorta como en el
-entrenamiento (caja cuadrada 1.3×, 299×299) y muestra para cada modelo la probabilidad de
-«falso», la decisión (umbral 0.5), el Grad-CAM de `block12` y la masa del mapa por región
-(interior / borde / fuera), la misma medición del notebook 06, con una lectura guiada por colores.
+entrenamiento (caja cuadrada 1.3×, 299×299) y pasa el recorte por los cuatro modelos de la
+semilla 42. Muestra dos a la vez según la comparación elegida (Fase B: BCE vs. Focal; Fase D:
+R1 vs. R3; B vs. D: BCE vs. R3), con la probabilidad de «falso», la decisión (umbral 0.5), el
+Grad-CAM de `block12` y la masa del mapa por región (interior / borde / fuera), la misma
+medición de los notebooks 06 y 08. Cambiar de comparación no vuelve a correr los modelos.
 
 Uso local (pesos fuera de Git, en results/checkpoints/):
     python demo/app.py                # http://127.0.0.1:7860
     python demo/app.py --share        # enlace temporal de Gradio (respaldo en Kaggle)
 
-Pesos: `bce_s42.pt` y `focal_g2_s42.pt`, del output del notebook 04 (o del 03). Se buscan en
---ckpt-dir, en $DEMO_CKPT_DIR, en results/checkpoints/ y en /kaggle/input.
+Pesos: `bce_s42.pt` y `focal_g2_s42.pt` (output del notebook 04) y `r1_sbi_bce_s42.pt` y
+`r3_sbi_focal_g2_aug_s42.pt` (output del notebook 07). Se buscan en --ckpt-dir, en
+$DEMO_CKPT_DIR, en results/checkpoints/ y en /kaggle/input. Si faltan los de una fase, la
+app arranca sin las comparaciones que los necesitan.
 
 La app no guarda imágenes ni resultados. Gradio guarda temporalmente los archivos subidos en
 su caché; aquí se borra cada 10 minutos y al cerrar la app.
@@ -38,12 +42,21 @@ import gradcam as G  # noqa: E402
 import preprocess as P  # noqa: E402
 import teardown as TD  # noqa: E402
 
-MODELOS = {"bce": ("BCE (γ = 0)", "bce_s42"), "focal": ("Focal (γ = 2)", "focal_g2_s42")}
+# clave: (nombre corto, fase, checkpoint, % detectado con umbral 0.5 en el test de FF++ (semilla 42):
+#         Deepfakes, Face2Face, FaceSwap, NeuralTextures y % de reales que quedan como reales).
+# preds_*.csv.gz de los notebooks 04 (Fase B) y 07 (Fase D), todos los frames de test.
+MODELOS = {
+    "bce":   ("BCE (γ = 0)", "B", "bce_s42", (97, 12, 1, 21, 95)),
+    "focal": ("Focal (γ = 2)", "B", "focal_g2_s42", (97, 7, 0, 17, 96)),
+    "r1":    ("R1 · SBI + BCE", "D", "r1_sbi_bce_s42", (96, 17, 3, 19, 97)),
+    "r3":    ("R3 · SBI + Focal + JPEG", "D", "r3_sbi_focal_g2_aug_s42", (99, 58, 25, 51, 87)),
+}
+COMPARACIONES = {"B": ("bce", "focal"), "D": ("r1", "r3"), "BD": ("bce", "r3")}
 LAYER, SIZE, UMBRAL = "block12", 299, 0.5
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Umbrales de lectura, tomados de los rangos medidos en el notebook 06 (2 frames por video de test):
-# respuesta «falso» → masa interior 0.67–0.95 y área 50 % 0.04–0.07; respuesta «real» → masa fuera 0.31–0.62.
+# Umbrales de lectura del mapa, de los rangos medidos en los notebooks 06 y 08: cuando el modelo
+# detecta, la masa interior es ≥ 0.67; cuando no, la masa fuera de la cara es ≥ 0.31.
 INTERIOR_MIN, FUERA_MIN = 0.60, 0.30
 
 # --------------------------------------------------------------------------------------------- textos
@@ -51,11 +64,17 @@ T = {
     "es": {
         "lang_label": "Idioma / Language",
         "title": "# ¿Qué mira el detector de deepfakes?",
-        "intro": ("Xception entrenada **solo con Deepfakes** de FaceForensics++ (c23, semilla 42). "
-                  "Se comparan dos funciones de pérdida: **BCE** y **Focal Loss (γ = 2)**. "
-                  "Las imágenes que subes no se guardan.\n\n"
+        "intro": ("Xception entrenada con caras de FaceForensics++ (video c23, semilla 42). Las imágenes no se guardan.\n\n"
                   "**1.** Sube una foto con una cara · **2.** Pulsa *Analizar* · "
-                  "**3.** Compara la decisión y el mapa de calor de cada modelo."),
+                  "**3.** Cambia la comparación para ver los otros modelos (no hace falta volver a analizar)."),
+        "comp_label": "Comparar",
+        "comp": {"B": "Fase B · BCE vs. Focal", "D": "Fase D · R1 vs. R3", "BD": "B vs. D · BCE vs. R3"},
+        "comp_desc": {
+            "B": "**Fase B:** entrenados solo con Deepfakes. Difieren en la pérdida: BCE o Focal (γ = 2).",
+            "D": "**Fase D:** Deepfakes + falsos sintéticos (SBI). R1 agrega solo SBI; R3 además Focal y compresión JPEG (modelo final).",
+            "BD": "**Antes y después:** BCE de la Fase B frente a R3, el modelo final de la Fase D.",
+        },
+        "missing": "Fase D no disponible: faltan {f} en `results/checkpoints/` (output del notebook 07).",
         "input": "Imagen con una cara",
         "analyze": "Analizar",
         "clear": "Limpiar",
@@ -63,90 +82,84 @@ T = {
         "precrop": "La imagen ya es un recorte de la cara (no detectar)",
         "guides": "Dibujar los límites de las regiones",
         "crop": "Recorte que ve el modelo",
-        "cam_bce": "Grad-CAM · BCE (γ = 0)",
-        "cam_focal": "Grad-CAM · Focal (γ = 2)",
         "empty": "Los resultados aparecerán aquí después de pulsar <b>Analizar</b>.",
         "no_image": "Primero sube una imagen.",
-        "msg_crop": "Cara detectada con MTCNN y recortada como en el entrenamiento (caja cuadrada 1.3×).",
+        "msg_crop": "Cara detectada y recortada como en el entrenamiento.",
         "msg_precrop": "Se usó la imagen completa como recorte de cara.",
         "msg_noface": "No se detectó ninguna cara. Prueba con otra imagen o marca «La imagen ya es un recorte».",
         "msg_out": "La cara detectada queda fuera de la imagen.",
-        "fake": "FALSO", "real": "REAL",
-        "pfake": "probabilidad de falso",
-        "conf": {"alta": "confianza alta", "media": "confianza media", "baja": "cerca del umbral: poco fiable"},
-        "agree": "Ambos modelos coinciden",
-        "disagree": "Los modelos no coinciden: el caso está cerca del límite de lo que aprendieron",
-        "where": "¿Dónde se concentra el mapa?",
+        "fake": "EVIDENCIA DE FALSO", "real": "SIN EVIDENCIA",
+        "pfake": "p(falso)",
+        "conf": {"alta": "lejos del umbral", "media": "", "baja": "cerca del umbral: poco fiable"},
+        "agree_fake": "Los dos modelos encuentran evidencia de falso.",
+        "agree_real": "Ninguno encuentra evidencia de falso. Eso <b>no prueba</b> que la imagen sea auténtica: "
+                      "cada modelo solo reconoce las manipulaciones que aprendió.",
+        "disagree": "Los modelos no coinciden: el caso está en el límite de lo que aprendió alguno de ellos.",
+        "test": "En el test detecta: DF {0} % · F2F {1} % · FS {2} % · NT {3} % · reales bien: {4} %",
         "reg": {"interior": "interior", "borde": "borde", "fuera": "fuera"},
-        "area50": "El 50 % del mapa ocupa el {a:.0f} % del recorte",
-        "pat": {"interior": "Evidencia concentrada en el interior de la cara",
-                "fuera": "Atención dispersa, sobre todo fuera de la cara",
-                "mixto": "Patrón mixto"},
-        "coh_ok": "Coincide con lo medido en el test: {txt}",
-        "coh_no": "No coincide con el patrón típico del test: interpretar con cautela",
-        "coh_fake": "cuando el modelo dice «falso», mira el interior de la cara.",
-        "coh_real": "cuando el modelo dice «real», no encuentra esa evidencia y mira fuera de la cara.",
-        "find_title": "Qué encontró el proyecto y límites de la demo",
+        "pat": {"interior": "Mapa en el interior de la cara", "fuera": "Mapa disperso, fuera de la cara", "mixto": "Mapa mixto"},
+        "coh_ok_fake": "patrón típico de una detección",
+        "coh_ok_real": "patrón típico cuando no hay evidencia",
+        "coh_no": "patrón atípico: interpretar con cautela",
+        "find_title": "Resultados del proyecto y límites",
         "find": """
 <div class="hallazgos">
   <div class="hz-card hz-find">
-    <div class="hz-head">🔍 Qué se esperaba y qué se encontró</div>
-    <p><b>Hipótesis:</b> el modelo miraría el <i>borde de la mezcla</i>, donde se pega la cara falsa.</p>
-    <p><b>Resultado:</b> no es así. Aprendió una evidencia del <b>interior</b> de la cara propia de Deepfakes.</p>
+    <div class="hz-head">Fase B · solo Deepfakes</div>
     <ul>
-      <li>Por eso los <b>FaceSwap</b> se escapan: AUC por debajo de 0.5 en las 12 corridas.</li>
-      <li><b>Focal Loss</b> cambia poco el mapa, igual que en los números: solo mejora NeuralTextures (+0.04, IC 95 % sin el 0).</li>
+      <li>Detecta Deepfakes (AUC 0.997), con la evidencia en el <b>interior</b> de la cara, no en el borde de la mezcla.</li>
+      <li>No reconoce FaceSwap (AUC 0.26) y poco Face2Face (0.69).</li>
+      <li>Focal Loss solo mejora NeuralTextures (+0.04).</li>
     </ul>
   </div>
   <div class="hz-card hz-fix">
-    <div class="hz-head">🧪 Fase D: lo que sí generalizó</div>
-    <p>La palanca fueron los <b>datos</b>, no la pérdida. Se agregaron falsos sintéticos (<i>Self-Blended Images</i>: un frame real mezclado consigo mismo) y aumentos de compresión, sin ver otras manipulaciones.</p>
+    <div class="hz-head">Fase D · + falsos sintéticos (SBI)</div>
     <ul>
-      <li><b>FaceSwap</b> pasa de 0.26 a <b>0.76</b> y Face2Face de 0.69 a 0.85 (3 semillas, IC 95 % sin el 0), sin perder Deepfakes.</li>
-      <li><b>Grad-CAM de la Fase D:</b> el modelo <b>no</b> pasa a mirar el borde de la mezcla (la masa del borde baja con SBI). Con el modelo final, la masa pasa al <b>interior</b> de la cara en FaceSwap y Face2Face, a la par que detecta más falsos: el mapa sigue la decisión.</li>
-      <li>Esta demo usa los modelos de la Fase B (BCE y Focal); el modelo de la Fase D no está incluido.</li>
+      <li>R3: FaceSwap 0.26 → <b>0.76</b> y Face2Face 0.69 → <b>0.85</b> (AUC, 3 semillas), sin perder Deepfakes.</li>
+      <li>El mapa no pasa al borde: R3 encuentra la evidencia del interior en más falsos.</li>
+      <li>Costo: más falsas alarmas (87 % de reales bien, frente a 95 %).</li>
     </ul>
   </div>
   <div class="hz-card hz-lim">
-    <div class="hz-head">⚠ Límites</div>
+    <div class="hz-head">Límites de la demo</div>
     <ul>
-      <li>El modelo vio solo videos de FF++ <b>comprimidos (c23)</b>: una foto de cámara o de celular está fuera de esa distribución y puede clasificarse mal.</li>
-      <li><b>Un resultado aislado no prueba nada:</b> las conclusiones del proyecto salen de 12 corridas (4 valores de γ × 3 semillas) con intervalos de confianza.</li>
+      <li>Los modelos vieron frames de video comprimido: una foto de cámara o celular está fuera de esa distribución.</li>
+      <li>Filtros, retoques o imágenes de IA generativa no se entrenaron: lo normal es que salgan «sin evidencia».</li>
+      <li>Un caso aislado no prueba nada: las conclusiones salen de 3 semillas con IC 95 %.</li>
     </ul>
   </div>
 </div>""",
-        "guide_title": "Cómo interpretar los resultados",
+        "guide_title": "Cómo leer los resultados",
         "guide": """
 <div class="guia">
-<p><b>Decisión.</b> <span class="chip fake">FALSO</span> si la probabilidad de falso es ≥ 0.5;
-<span class="chip real">REAL</span> si es menor. La confianza indica qué tan lejos está del umbral:
-<i>alta</i> (&lt; 0.1 o &gt; 0.9), <i>media</i> o <i>cerca del umbral</i> (0.3–0.7).</p>
-<p class="nota-auc"><b>Umbral 0.5 ≠ AUC.</b> Los AUC del proyecto miden si los falsos puntúan más alto que los reales, sin fijar umbral.
-Con el umbral 0.5 de esta demo, el modelo BCE marca como FALSO el 97 % de los Deepfakes, pero solo el 21 % de NeuralTextures (AUC 0.76),
-el 12 % de Face2Face (AUC 0.71) y el 1 % de FaceSwap; el 95 % de los reales sale REAL (test de FF++, semilla 42).
-Que otras manipulaciones salgan «real» es el comportamiento medido del modelo, no un error de la demo.</p>
-<p><b>Mapa de calor (Grad-CAM, capa <code>block12</code>).</b> Resalta las zonas que empujan la decisión hacia
-«falso»: <span class="sw" style="background:#d7191c"></span> rojo = mucha influencia,
-<span class="sw" style="background:#2c7bb6"></span> azul = poca. Muestra <i>dónde</i> mira el modelo, no <i>por qué</i>.</p>
-<p><b>Regiones del recorte</b> (recuadros blancos; aproximación geométrica, no una segmentación):
-<span class="sw" style="background:var(--c-int)"></span> <b>interior</b>: ojos, nariz y boca ·
-<span class="sw" style="background:var(--c-bor)"></span> <b>borde</b>: contorno de la cara ·
-<span class="sw" style="background:var(--c-out)"></span> <b>fuera</b>: pelo, cuello y fondo.</p>
-<p><b>Patrón del mapa.</b>
-<span class="chip int">interior concentrado</span> masa interior ≥ 0.60 ·
-<span class="chip out">disperso fuera</span> masa fuera ≥ 0.30 ·
-<span class="chip mix">mixto</span> el resto. En el test de FF++ (notebook 06), cuando el modelo responde «falso»
-la masa interior es 0.67–0.95 y muy concentrada; cuando responde «real», la masa fuera es 0.31–0.62.</p>
+<p><span class="chip fake">EVIDENCIA DE FALSO</span> si p(falso) ≥ 0.5; si no, <span class="chip real">SIN EVIDENCIA</span>.
+«Sin evidencia» no significa auténtica: cada tarjeta indica qué porcentaje de cada manipulación detecta ese modelo en el test
+(DF Deepfakes, F2F Face2Face, FS FaceSwap, NT NeuralTextures).</p>
+<p class="nota-auc">Las cifras del proyecto son <b>AUC</b> (si los falsos puntúan más alto que los reales, sin umbral). Con el umbral 0.5
+un modelo puede ordenar bien y aun así detectar poco: BCE tiene AUC 0.76 en NeuralTextures pero detecta el 21 %.</p>
+<p><b>Mapa de calor (Grad-CAM).</b> <span class="sw" style="background:#d7191c"></span> rojo = zonas que empujan hacia «falso»,
+<span class="sw" style="background:#2c7bb6"></span> azul = poco. Muestra <i>dónde</i> mira el modelo, no <i>por qué</i>.</p>
+<p><b>Regiones</b> (recuadros blancos, aproximadas):
+<span class="sw" style="background:var(--c-int)"></span> interior (ojos, nariz, boca) ·
+<span class="sw" style="background:var(--c-bor)"></span> borde (contorno) ·
+<span class="sw" style="background:var(--c-out)"></span> fuera (pelo, fondo). En el test, cuando el modelo detecta,
+la masa está en el interior (≥ 0.6); cuando no, se dispersa fuera.</p>
 </div>""",
     },
     "en": {
         "lang_label": "Idioma / Language",
         "title": "# What does the deepfake detector look at?",
-        "intro": ("Xception trained **only on Deepfakes** from FaceForensics++ (c23, seed 42). "
-                  "Two loss functions are compared: **BCE** and **Focal Loss (γ = 2)**. "
-                  "Uploaded images are not stored.\n\n"
+        "intro": ("Xception trained on FaceForensics++ faces (c23 video, seed 42). Uploaded images are not stored.\n\n"
                   "**1.** Upload a photo with a face · **2.** Press *Analyze* · "
-                  "**3.** Compare each model's decision and heat map."),
+                  "**3.** Switch the comparison to see the other models (no need to analyze again)."),
+        "comp_label": "Compare",
+        "comp": {"B": "Phase B · BCE vs. Focal", "D": "Phase D · R1 vs. R3", "BD": "B vs. D · BCE vs. R3"},
+        "comp_desc": {
+            "B": "**Phase B:** trained only on Deepfakes. They differ in the loss: BCE or focal (γ = 2).",
+            "D": "**Phase D:** Deepfakes + synthetic fakes (SBI). R1 adds only SBI; R3 also adds focal loss and JPEG compression (final model).",
+            "BD": "**Before and after:** Phase B BCE against R3, the final Phase D model.",
+        },
+        "missing": "Phase D not available: {f} missing from `results/checkpoints/` (notebook 07 output).",
         "input": "Image with a face",
         "analyze": "Analyze",
         "clear": "Clear",
@@ -154,80 +167,68 @@ la masa interior es 0.67–0.95 y muy concentrada; cuando responde «real», la 
         "precrop": "The image is already a face crop (skip detection)",
         "guides": "Draw the region boundaries",
         "crop": "Crop the model sees",
-        "cam_bce": "Grad-CAM · BCE (γ = 0)",
-        "cam_focal": "Grad-CAM · Focal (γ = 2)",
         "empty": "Results will appear here after pressing <b>Analyze</b>.",
         "no_image": "Upload an image first.",
-        "msg_crop": "Face detected with MTCNN and cropped as in training (1.3× square box).",
+        "msg_crop": "Face detected and cropped as in training.",
         "msg_precrop": "The whole image was used as the face crop.",
         "msg_noface": "No face detected. Try another image or tick «The image is already a face crop».",
         "msg_out": "The detected face falls outside the image.",
-        "fake": "FAKE", "real": "REAL",
-        "pfake": "probability of fake",
-        "conf": {"alta": "high confidence", "media": "medium confidence", "baja": "near the threshold: unreliable"},
-        "agree": "Both models agree",
-        "disagree": "The models disagree: the case is near the edge of what they learned",
-        "where": "Where is the map concentrated?",
+        "fake": "FAKE EVIDENCE", "real": "NO EVIDENCE",
+        "pfake": "p(fake)",
+        "conf": {"alta": "far from the threshold", "media": "", "baja": "near the threshold: unreliable"},
+        "agree_fake": "Both models find evidence of a fake.",
+        "agree_real": "Neither finds evidence of a fake. That does <b>not prove</b> the image is authentic: "
+                      "each model only recognises the manipulations it learned.",
+        "disagree": "The models disagree: the case is at the edge of what one of them learned.",
+        "test": "On the test set it catches: DF {0}% · F2F {1}% · FS {2}% · NT {3}% · reals right: {4}%",
         "reg": {"interior": "interior", "borde": "border", "fuera": "outside"},
-        "area50": "50% of the map covers {a:.0f}% of the crop",
-        "pat": {"interior": "Evidence concentrated on the face interior",
-                "fuera": "Diffuse attention, mostly outside the face",
-                "mixto": "Mixed pattern"},
-        "coh_ok": "Matches what was measured on the test set: {txt}",
-        "coh_no": "Does not match the typical test-set pattern: interpret with caution",
-        "coh_fake": "when the model says “fake”, it looks at the face interior.",
-        "coh_real": "when the model says “real”, it finds no such evidence and looks outside the face.",
-        "find_title": "What the project found and the demo's limits",
+        "pat": {"interior": "Map on the face interior", "fuera": "Diffuse map, outside the face", "mixto": "Mixed map"},
+        "coh_ok_fake": "typical pattern of a detection",
+        "coh_ok_real": "typical pattern when there is no evidence",
+        "coh_no": "atypical pattern: interpret with caution",
+        "find_title": "Project results and limits",
         "find": """
 <div class="hallazgos">
   <div class="hz-card hz-find">
-    <div class="hz-head">🔍 What we expected and what we found</div>
-    <p><b>Hypothesis:</b> the model would look at the <i>blending border</i>, where the fake face is pasted.</p>
-    <p><b>Result:</b> it does not. It learned <b>interior</b> face evidence specific to Deepfakes.</p>
+    <div class="hz-head">Phase B · Deepfakes only</div>
     <ul>
-      <li>That is why <b>FaceSwap</b> fakes slip through: AUC below 0.5 in all 12 runs.</li>
-      <li><b>Focal loss</b> barely changes the map, just as in the numbers: it only improves NeuralTextures (+0.04, 95% CI excludes 0).</li>
+      <li>Detects Deepfakes (AUC 0.997), with the evidence in the face <b>interior</b>, not on the blending border.</li>
+      <li>Does not recognise FaceSwap (AUC 0.26) and barely Face2Face (0.69).</li>
+      <li>Focal loss only improves NeuralTextures (+0.04).</li>
     </ul>
   </div>
   <div class="hz-card hz-fix">
-    <div class="hz-head">🧪 Phase D: what did generalize</div>
-    <p>The lever was the <b>data</b>, not the loss. We added synthetic fakes (<i>Self-Blended Images</i>: a real frame blended with itself) and compression augmentation, without seeing other manipulations.</p>
+    <div class="hz-head">Phase D · + synthetic fakes (SBI)</div>
     <ul>
-      <li><b>FaceSwap</b> rises from 0.26 to <b>0.76</b> and Face2Face from 0.69 to 0.85 (3 seeds, 95% CI excludes 0), with no loss on Deepfakes.</li>
-      <li><b>Phase D Grad-CAM:</b> the model does <b>not</b> start looking at the blending border (border mass drops with SBI). With the final model, the mass moves to the face <b>interior</b> on FaceSwap and Face2Face as it catches more fakes: the map follows the decision.</li>
-      <li>This demo uses the Phase B models (BCE and focal); the Phase D model is not included.</li>
+      <li>R3: FaceSwap 0.26 → <b>0.76</b> and Face2Face 0.69 → <b>0.85</b> (AUC, 3 seeds), with no loss on Deepfakes.</li>
+      <li>The map does not move to the border: R3 finds the interior evidence in more fakes.</li>
+      <li>Cost: more false alarms (87% of reals right, versus 95%).</li>
     </ul>
   </div>
   <div class="hz-card hz-lim">
-    <div class="hz-head">⚠ Limits</div>
+    <div class="hz-head">Demo limits</div>
     <ul>
-      <li>The model only saw <b>compressed (c23)</b> FF++ videos: a camera or phone photo is outside that distribution and may be misclassified.</li>
-      <li><b>A single result proves nothing:</b> the project's conclusions come from 12 runs (4 γ values × 3 seeds) with confidence intervals.</li>
+      <li>The models saw compressed video frames: a camera or phone photo is outside that distribution.</li>
+      <li>Filters, retouching or generative-AI images were not trained on: they will usually come out “no evidence”.</li>
+      <li>A single case proves nothing: the conclusions come from 3 seeds with 95% CIs.</li>
     </ul>
   </div>
 </div>""",
         "guide_title": "How to read the results",
         "guide": """
 <div class="guia">
-<p><b>Decision.</b> <span class="chip fake">FAKE</span> if the probability of fake is ≥ 0.5;
-<span class="chip real">REAL</span> otherwise. Confidence says how far it is from the threshold:
-<i>high</i> (&lt; 0.1 or &gt; 0.9), <i>medium</i>, or <i>near the threshold</i> (0.3–0.7).</p>
-<p class="nota-auc"><b>Threshold 0.5 ≠ AUC.</b> The project's AUCs measure whether fakes score higher than reals, with no fixed threshold.
-At this demo's 0.5 threshold, the BCE model flags 97% of Deepfakes as FAKE, but only 21% of NeuralTextures (AUC 0.76),
-12% of Face2Face (AUC 0.71) and 1% of FaceSwap; 95% of reals come out REAL (FF++ test, seed 42).
-Other manipulations coming out “real” is the model's measured behaviour, not a demo bug.</p>
-<p><b>Heat map (Grad-CAM, layer <code>block12</code>).</b> Highlights the areas that push the decision towards
-“fake”: <span class="sw" style="background:#d7191c"></span> red = strong influence,
-<span class="sw" style="background:#2c7bb6"></span> blue = weak. It shows <i>where</i> the model looks, not <i>why</i>.</p>
-<p><b>Crop regions</b> (white boxes; a geometric approximation, not a segmentation):
-<span class="sw" style="background:var(--c-int)"></span> <b>interior</b>: eyes, nose and mouth ·
-<span class="sw" style="background:var(--c-bor)"></span> <b>border</b>: face contour ·
-<span class="sw" style="background:var(--c-out)"></span> <b>outside</b>: hair, neck and background.</p>
-<p><b>Map pattern.</b>
-<span class="chip int">concentrated interior</span> interior mass ≥ 0.60 ·
-<span class="chip out">diffuse outside</span> outside mass ≥ 0.30 ·
-<span class="chip mix">mixed</span> otherwise. On the FF++ test set (notebook 06), when the model answers “fake”
-the interior mass is 0.67–0.95 and highly concentrated; when it answers “real”, the outside mass is 0.31–0.62.</p>
+<p><span class="chip fake">FAKE EVIDENCE</span> if p(fake) ≥ 0.5; otherwise <span class="chip real">NO EVIDENCE</span>.
+“No evidence” does not mean authentic: each card shows what share of each manipulation that model catches on the test set
+(DF Deepfakes, F2F Face2Face, FS FaceSwap, NT NeuralTextures).</p>
+<p class="nota-auc">The project's figures are <b>AUCs</b> (whether fakes score higher than reals, with no threshold). At the 0.5 threshold
+a model can rank well and still catch little: BCE has AUC 0.76 on NeuralTextures but catches 21%.</p>
+<p><b>Heat map (Grad-CAM).</b> <span class="sw" style="background:#d7191c"></span> red = areas pushing towards “fake”,
+<span class="sw" style="background:#2c7bb6"></span> blue = little. It shows <i>where</i> the model looks, not <i>why</i>.</p>
+<p><b>Regions</b> (white boxes, approximate):
+<span class="sw" style="background:var(--c-int)"></span> interior (eyes, nose, mouth) ·
+<span class="sw" style="background:var(--c-bor)"></span> border (contour) ·
+<span class="sw" style="background:var(--c-out)"></span> outside (hair, background). On the test set, when the model detects,
+the mass is in the interior (≥ 0.6); when it does not, it spreads outside.</p>
 </div>""",
     },
 }
@@ -241,31 +242,30 @@ CSS = """
 .sw { display:inline-block; width:0.9em; height:0.9em; border-radius:3px; vertical-align:-0.1em; }
 .res-vacio { opacity:0.7; padding:12px 2px; }
 .res-msg { font-size:0.9em; opacity:0.85; margin:2px 0 10px; }
-.res-acuerdo { padding:8px 12px; border-radius:8px; margin-bottom:10px; font-weight:600;
+.res-acuerdo { padding:8px 12px; border-radius:8px; margin-bottom:10px; line-height:1.4;
                background:rgba(127,140,141,0.15); border-left:4px solid var(--c-mix); }
 .res-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; }
 .res-card { border:1px solid rgba(127,127,127,0.35); border-radius:10px; padding:12px 14px; border-top:5px solid var(--c-mix); }
 .res-card.fake { border-top-color:var(--c-fake); } .res-card.real { border-top-color:var(--c-real); }
 .res-card h4 { margin:0 0 6px; font-size:1em; }
+.res-card h4 .fase { font-weight:500; opacity:0.65; font-size:0.85em; margin-left:6px; }
 .res-dec { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
-.res-dec .chip { font-size:1.05em; padding:3px 12px; }
-.res-p { font-size:1.6em; font-weight:700; font-variant-numeric:tabular-nums; }
+.res-dec .chip { font-size:0.95em; padding:3px 12px; }
+.res-p { font-size:1.4em; font-weight:700; font-variant-numeric:tabular-nums; }
 .res-conf { font-size:0.85em; opacity:0.8; }
-.res-sub { margin:10px 0 4px; font-size:0.85em; font-weight:600; opacity:0.85; }
-.res-bar { display:flex; height:22px; border-radius:6px; overflow:hidden; }
+.res-test { font-size:0.8em; opacity:0.8; margin:6px 0 8px; font-variant-numeric:tabular-nums; }
+.res-bar { display:flex; height:20px; border-radius:6px; overflow:hidden; }
 .res-bar div { color:#fff; font-size:0.75em; font-weight:700; display:flex; align-items:center; justify-content:center;
                white-space:nowrap; overflow:hidden; }
-.res-leg { display:flex; gap:12px; flex-wrap:wrap; font-size:0.8em; margin-top:4px; opacity:0.85; }
-.res-pat { margin-top:8px; }
-.res-coh { margin-top:6px; font-size:0.85em; }
-.res-coh.ok::before { content:"✓ "; color:var(--c-real); font-weight:700; }
-.res-coh.no::before { content:"⚠ "; color:var(--c-int); font-weight:700; }
+.res-pat { margin-top:8px; font-size:0.85em; }
+.res-pat.ok::after { content:" ✓"; color:var(--c-real); font-weight:700; }
+.res-pat.no::after { content:" ⚠"; color:var(--c-int); font-weight:700; }
 .guia p { margin:0 0 8px; line-height:1.45; }
 .nota-auc { padding:8px 12px; border-radius:8px; background:rgba(232,131,58,0.10); border-left:3px solid rgba(232,131,58,0.7); }
-.hallazgos { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
+.hallazgos { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; }
 .hz-card { border-radius:10px; padding:12px 16px; line-height:1.45; }
-.hz-card p { margin:0 0 6px; } .hz-card ul { margin:4px 0 0; padding-left:1.2em; } .hz-card li { margin-bottom:4px; }
-.hz-head { font-weight:700; margin-bottom:8px; }
+.hz-card ul { margin:0; padding-left:1.2em; } .hz-card li { margin-bottom:4px; }
+.hz-head { font-weight:700; margin-bottom:6px; }
 .hz-find { background:rgba(60,125,217,0.10); border:1px solid rgba(60,125,217,0.35); }
 .hz-lim { background:rgba(232,131,58,0.10); border:1px solid rgba(232,131,58,0.40); }
 .hz-fix { background:rgba(46,160,90,0.10); border:1px solid rgba(46,160,90,0.40); }
@@ -273,6 +273,8 @@ CSS = """
 .cap-wrap > div { min-height:0 !important; }
 .cap { font-size:0.85em; font-weight:600; opacity:0.85; margin:0; line-height:1.3; }
 .cap3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:var(--layout-gap, 12px); }
+#comparar .wrap { gap:6px; }
+#comp-desc p { margin:0; font-size:0.9em; opacity:0.85; }
 
 /* barra superior: enlaces de Gradio (API, Gradio, Configuración) a la izquierda, idioma a la derecha */
 #barra { display:grid !important; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:12px; padding:0 0 6px;
@@ -319,26 +321,38 @@ JS = """
 
 
 # --------------------------------------------------------------------------------------------- modelo
-def buscar_ckpt(nombre: str, ckpt_dir: str | None) -> Path:
+def buscar_ckpt(nombre: str, ckpt_dir: str | None) -> Path | None:
     dirs = [ckpt_dir, os.environ.get("DEMO_CKPT_DIR"), ROOT / "results" / "checkpoints", "/kaggle/input"]
     for d in dirs:
         if d and Path(d).exists():
             hit = sorted(Path(d).rglob(f"{nombre}.pt"))
             if hit:
                 return hit[0]
-    raise FileNotFoundError(
-        f"No se encontró {nombre}.pt. Copia los pesos del output del notebook 04 a results/checkpoints/ "
-        "o indica la carpeta con --ckpt-dir.")
+    return None
 
 
 def cargar_modelos(ckpt_dir: str | None = None) -> dict:
+    """Carga los checkpoints disponibles. Exige al menos los de la Fase B; los de la Fase D son opcionales."""
     out = {}
-    for clave, (_, nombre) in MODELOS.items():
+    for clave, (_, _, nombre, _) in MODELOS.items():
+        ruta = buscar_ckpt(nombre, ckpt_dir)
+        if ruta is None:
+            continue
         m = TD.build_model(False, 1)
-        estado = torch.load(buscar_ckpt(nombre, ckpt_dir), map_location="cpu", weights_only=False)
-        m.load_state_dict(estado["model"])
+        m.load_state_dict(torch.load(ruta, map_location="cpu", weights_only=False)["model"])
         out[clave] = m.to(DEVICE).eval()
+    if not {"bce", "focal"} <= set(out):
+        raise FileNotFoundError("Faltan bce_s42.pt o focal_g2_s42.pt (output del notebook 04): copiarlos a "
+                                "results/checkpoints/ o indicar la carpeta con --ckpt-dir.")
     return out
+
+
+def comparaciones_disponibles(modelos: dict) -> list[str]:
+    return [c for c, par in COMPARACIONES.items() if set(par) <= set(modelos)]
+
+
+def faltantes(modelos: dict) -> list[str]:
+    return [f"{MODELOS[k][2]}.pt" for k in MODELOS if k not in modelos]
 
 
 def recortar(rgb: np.ndarray, ya_recortada: bool):
@@ -363,7 +377,7 @@ def superponer(crop: np.ndarray, cam: np.ndarray, guias: bool) -> np.ndarray:
 
 
 def procesar(modelos: dict, imagen, ya_recortada: bool = False, guias: bool = True) -> dict:
-    """Corre detección + modelos. Devuelve un dict sin texto (el texto depende del idioma)."""
+    """Corre detección + todos los modelos cargados. Devuelve un dict sin texto (el texto depende del idioma)."""
     if imagen is None:
         return {"msg": "no_image"}
     rgb = np.asarray(Image.fromarray(imagen).convert("RGB"))
@@ -396,60 +410,58 @@ def patron(r: dict) -> str:
 
 
 def coherente(r: dict) -> bool:
-    """¿La decisión coincide con el patrón del notebook 06? falso ↔ interior, real ↔ fuera."""
+    """¿La decisión coincide con el patrón de los notebooks 06 y 08? detecta ↔ interior, no detecta ↔ fuera."""
     return (r["p"] >= UMBRAL and patron(r) == "interior") or (r["p"] < UMBRAL and patron(r) == "fuera")
 
 
 def tarjeta(clave: str, r: dict, t: dict) -> str:
+    nombre, fase, _, det = MODELOS[clave]
     falso = r["p"] >= UMBRAL
     cls = "fake" if falso else "real"
     seg = "".join(
         f'<div style="width:{100 * r[k]:.1f}%;background:var({v})" title="{t["reg"][k]} {r[k]:.2f}">'
-        f'{t["reg"][k] + " " if r[k] >= 0.22 else ""}{r[k]:.2f}</div>' if r[k] >= 0.08 else
+        f'{(t["reg"][k] + " ") if r[k] >= 0.22 else ""}{r[k]:.2f}</div>' if r[k] >= 0.08 else
         f'<div style="width:{100 * r[k]:.1f}%;background:var({v})" title="{t["reg"][k]} {r[k]:.2f}"></div>'
         for k, v in (("interior", "--c-int"), ("borde", "--c-bor"), ("fuera", "--c-out")))
-    leg = "".join(f'<span><span class="sw" style="background:var({v})"></span> {t["reg"][k]} {r[k]:.2f}</span>'
-                  for k, v in (("interior", "--c-int"), ("borde", "--c-bor"), ("fuera", "--c-out")))
     pat = patron(r)
-    chip_pat = {"interior": "int", "fuera": "out", "mixto": "mix"}[pat]
-    coh = (f'<div class="res-coh ok">{t["coh_ok"].format(txt=t["coh_fake"] if falso else t["coh_real"])}</div>'
-           if coherente(r) else f'<div class="res-coh no">{t["coh_no"]}</div>')
+    ok = coherente(r)
+    lectura = t["coh_ok_fake" if falso else "coh_ok_real"] if ok else t["coh_no"]
+    conf = t["conf"][confianza(r["p"])]
     return f"""
 <div class="res-card {cls}">
-  <h4>{html.escape(MODELOS[clave][0])}</h4>
+  <h4>{html.escape(nombre)}<span class="fase">{"Fase" if t is T["es"] else "Phase"} {fase}</span></h4>
   <div class="res-dec"><span class="chip {cls}">{t["fake"] if falso else t["real"]}</span>
-    <span class="res-p">{r["p"]:.3f}</span><span class="res-conf">{t["pfake"]} · {t["conf"][confianza(r["p"])]}</span></div>
-  <div class="res-sub">{t["where"]}</div>
+    <span class="res-p">{r["p"]:.3f}</span><span class="res-conf">{t["pfake"]}{" · " + conf if conf else ""}</span></div>
+  <div class="res-test">{t["test"].format(*det)}</div>
   <div class="res-bar">{seg}</div>
-  <div class="res-leg">{leg}<span>· {t["area50"].format(a=100 * r["area50"])}</span></div>
-  <div class="res-pat"><span class="chip {chip_pat}">{t["pat"][pat]}</span></div>
-  {coh}
+  <div class="res-pat {"ok" if ok else "no"}">{t["pat"][pat]} · {lectura}</div>
 </div>"""
 
 
-def render(res: dict | None, lang: str) -> str:
+def render(res: dict | None, lang: str, comp: str = "B") -> str:
     t = T[lang]
     if not res:
         return f'<div class="res-vacio">{t["empty"]}</div>'
     if "modelos" not in res:
         return f'<div class="res-acuerdo" style="border-left-color:var(--c-int)">{t[res["msg"]]}</div>'
-    ms = res["modelos"]
-    dec = {k: r["p"] >= UMBRAL for k, r in ms.items()}
-    if len(set(dec.values())) == 1:
-        falso = next(iter(dec.values()))
-        acuerdo = (f'<div class="res-acuerdo" style="border-left-color:var(--c-{"fake" if falso else "real"})">'
-                   f'{t["agree"]}: <span class="chip {"fake" if falso else "real"}">{t["fake"] if falso else t["real"]}</span></div>')
+    par = [k for k in COMPARACIONES[comp] if k in res["modelos"]]
+    dec = {res["modelos"][k]["p"] >= UMBRAL for k in par}
+    if dec == {True}:
+        acuerdo = f'<div class="res-acuerdo" style="border-left-color:var(--c-fake)">{t["agree_fake"]}</div>'
+    elif dec == {False}:
+        acuerdo = f'<div class="res-acuerdo" style="border-left-color:var(--c-real)">{t["agree_real"]}</div>'
     else:
         acuerdo = f'<div class="res-acuerdo" style="border-left-color:var(--c-int)">{t["disagree"]}</div>'
     return (f'<div class="res-msg">{t[res["msg"]]}</div>{acuerdo}'
-            f'<div class="res-cards">{"".join(tarjeta(k, r, t) for k, r in ms.items())}</div>')
+            f'<div class="res-cards">{"".join(tarjeta(k, res["modelos"][k], t) for k in par)}</div>')
 
 
-def analizar(modelos: dict, imagen, ya_recortada: bool = False, guias: bool = True, lang: str = "es"):
-    """Atajo para pruebas sin interfaz: (recorte, overlay BCE, overlay Focal, html)."""
+def analizar(modelos: dict, imagen, ya_recortada: bool = False, guias: bool = True, lang: str = "es", comp: str = "B"):
+    """Atajo para pruebas sin interfaz: (recorte, overlay A, overlay B, html) de la comparación `comp`."""
     res = procesar(modelos, imagen, ya_recortada, guias)
     ms = res.get("modelos", {})
-    return res.get("crop"), ms.get("bce", {}).get("overlay"), ms.get("focal", {}).get("overlay"), render(res, lang)
+    a, b = COMPARACIONES[comp]
+    return res.get("crop"), ms.get(a, {}).get("overlay"), ms.get(b, {}).get("overlay"), render(res, lang, comp)
 
 
 # --------------------------------------------------------------------------------------------- interfaz
@@ -457,16 +469,28 @@ def cabecera_entrada(t: dict) -> str:
     return f'<div class="cap">{t["input"]}</div>'
 
 
-def cabecera_salidas(t: dict) -> str:
-    return f'<div class="cap cap3"><span>{t["crop"]}</span><span>{t["cam_bce"]}</span><span>{t["cam_focal"]}</span></div>'
+def cabecera_salidas(t: dict, comp: str) -> str:
+    a, b = (MODELOS[k][0] for k in COMPARACIONES[comp])
+    return (f'<div class="cap cap3"><span>{t["crop"]}</span><span>Grad-CAM · {html.escape(a)}</span>'
+            f'<span>Grad-CAM · {html.escape(b)}</span></div>')
+
+
+def desc_comparacion(t: dict, comp: str, modelos: dict) -> str:
+    txt = t["comp_desc"][comp]
+    falta = faltantes(modelos)
+    if falta:
+        txt += "  \n⚠ " + t["missing"].format(f=", ".join(f"`{f}`" for f in falta))
+    return txt
 
 
 def construir_ui(modelos: dict):
     import gradio as gr
 
+    comps = comparaciones_disponibles(modelos)
+    opciones_comp = lambda tt: [(tt["comp"][c], c) for c in comps]  # noqa: E731
     t = T["es"]
-    with gr.Blocks(title="Deepfake detector · Grad-CAM BCE vs. Focal", delete_cache=(600, 600)) as ui:
-        estado = gr.State(None)
+    with gr.Blocks(title="Deepfake detector · Grad-CAM", delete_cache=(600, 600)) as ui:
+        estado = gr.State(None)   # resultados de todos los modelos (con overlays) para cambiar de comparación sin recalcular
         with gr.Row(equal_height=False, elem_id="barra"):
             gr.HTML('<div id="enlaces-top"></div>', padding=False, container=False, elem_id="enlaces-wrap")
             idioma = gr.Radio(list(IDIOMAS), value="Español", label=t["lang_label"], show_label=False,
@@ -485,42 +509,52 @@ def construir_ui(modelos: dict):
                     ya = gr.Checkbox(label=t["precrop"], value=False)
                     guias = gr.Checkbox(label=t["guides"], value=True)
             with gr.Column(scale=3, min_width=480):
-                cap_out = gr.HTML(cabecera_salidas(t), elem_classes="cap-wrap")
+                comp = gr.Radio(opciones_comp(t), value="B", label=t["comp_label"], elem_id="comparar")
+                comp_desc = gr.Markdown(desc_comparacion(t, "B", modelos), elem_id="comp-desc")
+                cap_out = gr.HTML(cabecera_salidas(t, "B"), elem_classes="cap-wrap")
                 with gr.Row():  # sin etiqueta propia: cambiarla recarga la imagen y parpadea al cambiar de idioma
-                    o_crop = gr.Image(label=t["crop"], show_label=False, interactive=False, height=230)
-                    o_bce = gr.Image(label=t["cam_bce"], show_label=False, interactive=False, height=230)
-                    o_focal = gr.Image(label=t["cam_focal"], show_label=False, interactive=False, height=230)
+                    o_crop = gr.Image(show_label=False, interactive=False, height=230)
+                    o_a = gr.Image(show_label=False, interactive=False, height=230)
+                    o_b = gr.Image(show_label=False, interactive=False, height=230)
                 resultado = gr.HTML(render(None, "es"), elem_id="resultado")
         with gr.Accordion(t["guide_title"], open=True) as guia_acc:
             guia = gr.HTML(t["guide"], elem_id="guia")
         with gr.Accordion(t["find_title"], open=True) as hall_acc:
             hallazgos = gr.HTML(t["find"], elem_id="hallazgos")
 
-        def correr(im, y, g, lang_nombre):
-            res = procesar(modelos, im, y, g)
-            ms = res.get("modelos", {})
-            return (res.get("crop"), ms.get("bce", {}).get("overlay"), ms.get("focal", {}).get("overlay"),
-                    {"msg": res["msg"], "modelos": {k: {kk: vv for kk, vv in r.items() if kk != "overlay"}
-                                                    for k, r in ms.items()}} if ms else {"msg": res["msg"]},
-                    render(res, IDIOMAS[lang_nombre]))
+        def overlays(res, c):
+            ms = (res or {}).get("modelos", {})
+            return tuple(ms.get(k, {}).get("overlay") for k in COMPARACIONES[c])
 
-        def cambiar_idioma(lang_nombre, res):
+        def correr(im, y, g, lang_nombre, c):
+            res = procesar(modelos, im, y, g)
+            return (res.get("crop"), *overlays(res, c), res, render(res, IDIOMAS[lang_nombre], c))
+
+        def cambiar_comp(c, lang_nombre, res):
+            tt = T[IDIOMAS[lang_nombre]]
+            return (desc_comparacion(tt, c, modelos), cabecera_salidas(tt, c), *overlays(res, c),
+                    render(res, IDIOMAS[lang_nombre], c))
+
+        def cambiar_idioma(lang_nombre, c, res):
             tt = T[IDIOMAS[lang_nombre]]
             # Solo se actualizan textos; las imágenes no se tocan.
-            return (tt["title"], tt["intro"], cabecera_entrada(tt), cabecera_salidas(tt),
+            return (tt["title"], tt["intro"], cabecera_entrada(tt), cabecera_salidas(tt, c),
+                    gr.update(choices=opciones_comp(tt), value=c, label=tt["comp_label"]), desc_comparacion(tt, c, modelos),
                     gr.update(value=tt["analyze"]), gr.update(value=tt["clear"]), gr.update(label=tt["options"]),
                     gr.update(label=tt["precrop"]), gr.update(label=tt["guides"]),
-                    render(res, IDIOMAS[lang_nombre]), gr.update(label=tt["guide_title"]), tt["guide"],
+                    render(res, IDIOMAS[lang_nombre], c), gr.update(label=tt["guide_title"]), tt["guide"],
                     gr.update(label=tt["find_title"]), tt["find"])
 
         def borrar(lang_nombre):
             return None, None, None, None, None, render(None, IDIOMAS[lang_nombre])
 
-        boton.click(correr, [entrada, ya, guias, idioma], [o_crop, o_bce, o_focal, estado, resultado],
+        boton.click(correr, [entrada, ya, guias, idioma, comp], [o_crop, o_a, o_b, estado, resultado],
                     api_name="analizar")
-        limpiar.click(borrar, [idioma], [entrada, o_crop, o_bce, o_focal, estado, resultado], api_name=False)
-        idioma.change(cambiar_idioma, [idioma, estado],
-                      [titulo, intro, cap_in, cap_out, boton, limpiar, opciones, ya, guias,
+        comp.change(cambiar_comp, [comp, idioma, estado], [comp_desc, cap_out, o_a, o_b, resultado],
+                    api_name=False, show_progress="hidden", queue=False)
+        limpiar.click(borrar, [idioma], [entrada, o_crop, o_a, o_b, estado, resultado], api_name=False)
+        idioma.change(cambiar_idioma, [idioma, comp, estado],
+                      [titulo, intro, cap_in, cap_out, comp, comp_desc, boton, limpiar, opciones, ya, guias,
                        resultado, guia_acc, guia, hall_acc, hallazgos], api_name=False,
                       show_progress="hidden", queue=False)  # sin la animación de «cargando» en cada texto
     return ui
@@ -528,12 +562,14 @@ def construir_ui(modelos: dict):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--ckpt-dir", help="carpeta con bce_s42.pt y focal_g2_s42.pt")
+    ap.add_argument("--ckpt-dir", help="carpeta con los checkpoints *_s42.pt")
     ap.add_argument("--port", type=int, default=7860)
     ap.add_argument("--share", action="store_true", help="enlace público temporal de Gradio (p. ej. desde Kaggle)")
     args = ap.parse_args()
     modelos = cargar_modelos(args.ckpt_dir)
-    print(f"Modelos cargados en {DEVICE}: {', '.join(v[0] for v in MODELOS.values())}")
+    print(f"Modelos cargados en {DEVICE}: {', '.join(MODELOS[k][0] for k in modelos)}")
+    if faltantes(modelos):
+        print("Faltan (la Fase D queda desactivada):", ", ".join(faltantes(modelos)))
     construir_ui(modelos).launch(server_name="127.0.0.1", server_port=args.port, share=args.share, css=CSS, js=JS)
 
 
