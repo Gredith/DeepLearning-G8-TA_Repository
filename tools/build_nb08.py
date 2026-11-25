@@ -21,7 +21,7 @@ CLONE = '''# Kaggle: clona el repo (Internet = On). En local: usa la copia del r
 import os, sys, subprocess
 from pathlib import Path
 REPO_URL = "https://github.com/Gredith/DeepLearning-G8-TA_Repository.git"
-BRANCH = os.environ.get("REPO_BRANCH", "feature/sbi-ajustes")   # cambiar a "main" cuando se haga el merge
+BRANCH = os.environ.get("REPO_BRANCH", "main")
 ROOT = Path("/kaggle/working/repo") if Path("/kaggle").exists() else Path.cwd().parents[1]
 if Path("/kaggle").exists() and not ROOT.exists():
     subprocess.run(["git", "clone", "-q", "-b", BRANCH, REPO_URL, str(ROOT)], check=True)
@@ -162,11 +162,13 @@ md("## 4. FaceSwap con R3: videos detectados frente a no detectados"),
 code('''fs = regiones[(regiones.test == "FaceSwap") & (regiones.clase == "falso") & (regiones.modelo == "R3 (+JPEG/blur)")]
 fs.groupby("acierto")[["masa_interior", "masa_borde", "masa_fuera", "area_50"]].agg(["mean", "count"]).round(3)'''),
 md("""## 5. Contraste con la predicción 4 de H-D1
-*Completar después de correr, con la tabla de la sección 3 (R1 frente a R0, masa de borde en falsos) y registrarlo como C-02 en `docs/DECISIONS.md`.*
+Resultados de la v2 (24/11/2026), 2 frames por video de test (140 videos falsos por manipulación), regiones concéntricas aproximadas. Registrado como C-02 en `docs/DECISIONS.md`.
 
 | Predicción | Resultado | ¿Se cumplió? |
 |---|---|---|
-| Con R1, la masa de borde sube en los falsos frente a R0 (IC 95 % del Δ por encima de 0) | *pendiente* | *pendiente* |
+| Con R1, la masa de borde sube en los falsos frente a R0 (IC 95 % del Δ por encima de 0) | Δ R1 − R0: Deepfakes −0.059 [−0.070, −0.049], Face2Face −0.054, FaceSwap −0.045, NeuralTextures −0.044; los cuatro IC excluyen 0 | **No** (baja) |
+
+**Lectura.** Los SBI mejoran el AUC en FaceSwap y Face2Face (notebook 07), pero el modelo no pasa a mirar el contorno de la cara: con R1 la masa del borde baja y se va fuera de la cara; con R3 el borde no cambia (FaceSwap +0.014 [−0.000, 0.030]) y la masa pasa al **interior** (FaceSwap +0.240, Face2Face +0.287, NeuralTextures +0.193; `gradcam_fase_d_delta_vs_r0.csv`). Ese cambio acompaña a la fracción de falsos detectados con umbral 0.5 (FaceSwap: 0.4 % con R0, 25 % con R3). Grad-CAM sigue la decisión: los falsos detectados tienen la masa en el interior y los no detectados, fuera, como en el 06. Una lectura compatible, no medida: los SBI enseñan diferencias de color y textura dentro de la región mezclada, no su borde.
 
 Límites (los mismos del 06): regiones concéntricas aproximadas, una sola semilla y Grad-CAM muestra correlación, no causalidad.
 

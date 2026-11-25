@@ -1,28 +1,36 @@
-# Demo en vivo: Grad-CAM con BCE vs. Focal Loss (γ = 2)
+# Demo en vivo: Grad-CAM de los modelos de la Fase B y de la Fase D
 
 Interfaz local (Gradio) para mostrar qué mira el detector. Se sube una imagen y la app:
 
 1. detecta la cara más grande con MTCNN y la recorta como en el entrenamiento (caja cuadrada 1.3×, 299×299);
-2. pasa el recorte por los dos modelos de la semilla 42 (BCE y Focal γ = 2, entrenados solo con Deepfakes de FF++ c23);
-3. muestra, para cada uno, la probabilidad de «falso», la decisión (umbral 0.5), el Grad-CAM de `block12` y la masa del mapa por región (interior / borde / fuera y área que concentra el 50 %), la misma medición del notebook 06.
+2. pasa el recorte por los cuatro modelos de la semilla 42: **Fase B** (solo Deepfakes; BCE y Focal γ = 2) y **Fase D** (Deepfakes + SBI; R1 = SBI + BCE y R3 = SBI + Focal + JPEG, el modelo final);
+3. muestra dos a la vez según la comparación elegida (*Fase B*, *Fase D* o *Antes y después*: BCE frente a R3). Cambiar de comparación no vuelve a correr los modelos.
 
-La interfaz está en **español e inglés**: selector 🌐 arriba a la derecha; el cambio es inmediato, no recarga las imágenes y también traduce los resultados ya calculados. En la misma barra, a la izquierda, quedan los enlaces de Gradio (*Usar vía API*, *Construido con Gradio*, *Configuración*); estos siguen el idioma del navegador, no el selector. Debajo de las imágenes, una tarjeta por modelo resume la lectura con colores:
+Español e inglés con el selector 🌐 (los enlaces de Gradio de la barra siguen el idioma del navegador). Cada tarjeta muestra:
 
-| Elemento | Colores y criterio |
+| Elemento | Qué indica |
 |---|---|
-| Decisión | rojo = FALSO (p ≥ 0.5) · verde = REAL; confianza *alta* si p < 0.1 o p > 0.9, *poco fiable* si 0.3 ≤ p ≤ 0.7 |
-| Masa por región | barra naranja (interior) · morado (borde) · azul (fuera) |
-| Patrón del mapa | *interior concentrado* si masa interior ≥ 0.60 · *disperso fuera* si masa fuera ≥ 0.30 · *mixto* el resto |
-| Coherencia | ✓ si la decisión coincide con lo medido en el test (falso ↔ interior, real ↔ fuera); ⚠ si no |
-| Acuerdo | aviso si BCE y Focal dan decisiones distintas |
+| Decisión | **EVIDENCIA DE FALSO** si p(falso) ≥ 0.5; si no, **SIN EVIDENCIA**. No se usa «real»: el modelo solo reconoce las manipulaciones que aprendió, así que no detectar no prueba que la imagen sea auténtica |
+| «En el test detecta» | % de cada manipulación marcada como falsa con umbral 0.5 en el test de FF++ (y % de reales bien clasificados). `preds_*.csv.gz` de los notebooks 04 (Fase B) y 07 (Fase D), todos los frames |
+| Barra de regiones | masa del Grad-CAM en el interior (naranja), borde (morado) y fuera (azul) |
+| Patrón | interior si masa interior ≥ 0.60; fuera si masa fuera ≥ 0.30. ✓ si coincide con lo medido en el test (detecta ↔ interior; no detecta ↔ fuera), ⚠ si no |
 
-Los umbrales del patrón salen de los rangos del notebook 06 (respuesta «falso»: interior 0.67–0.95; respuesta «real»: fuera 0.31–0.62). La sección «Cómo interpretar los resultados» explica cada elemento de las tarjetas e incluye una nota sobre el umbral 0.5 frente al AUC: con ese umbral, el modelo BCE marca como falso el 97 % de los Deepfakes del test, pero solo el 21 % de NeuralTextures, el 12 % de Face2Face y el 1 % de FaceSwap, aunque los AUC de NeuralTextures y Face2Face sean 0.76 y 0.71.
+| Modelo (s42) | DF | F2F | FS | NT | Reales bien |
+|---|---|---|---|---|---|
+| BCE (Fase B) | 97 % | 12 % | 1 % | 21 % | 95 % |
+| Focal γ = 2 (Fase B) | 97 % | 7 % | 0 % | 17 % | 96 % |
+| R1 · SBI + BCE (Fase D) | 96 % | 17 % | 3 % | 19 % | 97 % |
+| R3 · SBI + Focal + JPEG (Fase D) | 99 % | 58 % | 25 % | 51 % | 87 % |
 
-**Verificación (24/11):** con recortes del test de FF++, la demo reproduce las probabilidades de `preds_*.csv.gz` del notebook 04 (80 frames, diferencia máxima 0.008, ninguna decisión distinta) si se marca «La imagen ya es un recorte de la cara». Aparte, «Qué encontró el proyecto y límites de la demo» resume en tres tarjetas la hipótesis frente al resultado (interior, no borde de la mezcla; FaceSwap se escapa; Focal mejora solo NeuralTextures), la Fase D (con falsos sintéticos SBI y aumentos de compresión FaceSwap sube a 0.76 y Face2Face a 0.85; ese modelo no está en la demo) y los límites (fotos fuera de la distribución de FF++ c23; un caso aislado no prueba nada).
+Por eso, con una foto editada, filtrada o hecha con otro generador lo esperable es «sin evidencia», sobre todo en la Fase B. Las secciones «Cómo leer los resultados» y «Resultados del proyecto y límites» lo resumen dentro de la app.
+
+**Verificación (24/11):** con recortes del test de FF++ y la opción «La imagen ya es un recorte de la cara», la demo reproduce las probabilidades de `preds_*.csv.gz` de Kaggle en los cuatro modelos (notebooks 04 y 07; 30 frames por modelo, diferencia máxima 0.007, ninguna decisión distinta).
 
 ## Requisitos
 
-- Pesos `bce_s42.pt` y `focal_g2_s42.pt` (~80 MB cada uno), del output del notebook 04 v3 en Kaggle (carpeta `checkpoints/`). Se copian a `results/checkpoints/`, que Git ignora. **No se suben al repositorio:** son un derivado de FF++.
+- Pesos (~80 MB cada uno) en `results/checkpoints/`, que Git ignora. **No se suben al repositorio:** son un derivado de FF++.
+  - Fase B (obligatorios): `bce_s42.pt` y `focal_g2_s42.pt`, del output del notebook 04 v3 (carpeta `checkpoints/`).
+  - Fase D (opcionales): `r1_sbi_bce_s42.pt` y `r3_sbi_focal_g2_aug_s42.pt`, del output del notebook 07. Sin ellos la app arranca solo con la comparación de la Fase B y avisa qué falta.
 - Python con PyTorch en CPU (probado con Python 3.14, torch 2.15 CPU, timm 1.0, Gradio 6). Con los dos modelos tarda ~0.5 s por imagen en CPU.
 
 ```bash
@@ -48,10 +56,10 @@ Botones *Analizar* y *Limpiar* bajo la imagen. En *Opciones*: «La imagen ya es 
 
 ## Guion sugerido (~5 min)
 
-1. **Foto real de un integrante** (con su consentimiento). Lo esperado: «real» y masa sobre todo fuera de la cara. Probarla antes: una foto de cámara está fuera de la distribución de FF++ c23 y el modelo puede equivocarse; si pasa, sirve para hablar del cambio de distribución.
-2. **Deepfake detectado:** masa concentrada en el interior de la cara.
-3. **FaceSwap no detectado:** el modelo responde «real»; no aparece la evidencia del interior que aprendió de Deepfakes.
-4. **Cierre:** Focal cambia poco el mapa, igual que en los números (mejora solo NeuralTextures, +0.04). Lo que sí generalizó fue cambiar los datos (Fase D, tarjeta verde): FaceSwap 0.26 → 0.76.
+1. **Foto de un integrante** (con su consentimiento), en *Fase B*. Lo esperado: «sin evidencia» y masa fuera de la cara. Probarla antes: una foto de cámara está fuera de la distribución de FF++ y puede dar falsa alarma, sobre todo con R3.
+2. **Deepfake:** los dos modelos lo detectan, con la masa en el interior de la cara.
+3. **FaceSwap, en *Antes y después*:** BCE no encuentra evidencia; R3 tiene más probabilidad de detectarlo (25 % en el test, frente al 1 %), y cuando lo hace la masa pasa al interior.
+4. **Cierre:** Focal cambia poco (Fase B); lo que generalizó fue cambiar los datos (Fase D: FaceSwap 0.26 → 0.76 de AUC), con el costo de más falsas alarmas.
 
 ## Licencia y privacidad
 
