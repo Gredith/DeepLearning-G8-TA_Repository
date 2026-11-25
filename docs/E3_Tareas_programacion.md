@@ -5,31 +5,29 @@
 **Objetivo:** entregar una demo reproducible y el informe final de 4–8 páginas con la plantilla WAIMLAp.
 **Plan de trabajo:** fases A (teardown), B (intervención BCE/Focal) y C (evaluación bajo cambios de manipulación/dataset), definidas en [CONTEXTO_PROYECTO.md](CONTEXTO_PROYECTO.md).
 
-> **Estado al 07/11/2026:** B-01 (BCE) y B-02 (Focal γ=2) se ejecutaron el 28/10 en Kaggle T4, dentro de la versión 5 del notebook 02. Las métricas están en `results/metrics/`: el AUC in-domain es casi igual en ambas pérdidas, Focal **no** mejora el cross-manipulation y el AUC en FaceSwap queda por debajo de 0.5. El 07/11 se reestructuraron los notebooks (D-12) y se limpió el historial público por licencia FF++ (D-11). La tabla de abajo, fechada al 27/10, queda como histórico; lo vigente está en **Pendientes al 07/11**. El histórico de E2 está en [E2_Tareas_programacion.md](E2_Tareas_programacion.md).
+> **Estado al 25/11/2026:** el E3 se entregó el 11/11 y después se agregó la Fase D (SBI, notebooks 07 y 08). Todas las tareas del E3 están cerradas. Las extensiones que no se hicieron (c40, DFDC/Celeb-DF, SRM) quedan como trabajo futuro, fuera de alcance (ver Extensiones). Resultados en [DECISIONS](DECISIONS.md); histórico del E2 en [E2_Tareas_programacion.md](E2_Tareas_programacion.md).
 
-## Pendientes al 07/11 (entrega el 11/11)
+## Cierre de los pendientes del 07/11
 
-### Licencia FF++ y GitHub (urgente, fuera del código)
-- [ ] **Ticket a GitHub Support** ([support.github.com](https://support.github.com/request), categoría *Remove sensitive data / cached views*): pedir que borren los commits huérfanos y sus vistas en caché de `Gredith/DeepLearning-G8-TA_Repository`. Los SHA están en la conversación de trabajo del 07/11, no aquí: publicarlos en un repo público facilitaría llegar a las vistas en caché. Mencionar que el historial ya se reescribió y que ninguna rama los contiene.
-- [ ] Confirmar en Kaggle que son **privados**: los notebooks 01–03, el Dataset y notebook de `ronaldosegura` que contiene el script de descarga y el futuro Dataset `ffpp-crops-g8`.
-- [ ] Avisar a Diego y Ronaldo: borrar sus clones locales y volver a clonar (el historial cambió). No hacer push desde clones viejos, porque volverían a subir los commits con caras.
-- [ ] Revisar en GitHub → Actions que el workflow `licencia-ffpp` pase en el último commit.
-- [ ] (Opcional) Comprobar en uno o dos días que «Contributors» ya no muestre a Claude (es caché de GitHub).
+### Licencia FF++ y GitHub
+- [x] Confirmar en Kaggle que son **privados** los notebooks, el Dataset y el notebook de `ronaldosegura` que contiene el script de descarga, y el Dataset `ffpp-crops-g8`. → Confirmado por el grupo.
+- [x] Avisar a Diego y Ronaldo que borren sus clones locales y vuelvan a clonar (el historial cambió). → Hecho.
+- [x] Revisar en GitHub → Actions que el workflow `licencia-ffpp` pase en el último commit. → En verde en `main` (25/11).
 
 ### Kaggle: volver a ejecutar con la nueva estructura (D-12)
-- [ ] En cada notebook de Kaggle, importar la versión nueva desde GitHub antes de la próxima *Save Version*, para que la versión vieja no pise la del repo.
-- [ ] 02 → **Save & Run All (Commit)** → *Output* → **New Dataset** `ffpp-crops-g8` (Private). Si falla, usar `CREAR_POR_API = True` (sección 5 del 02, Secret `KAGGLE_KEY`).
-- [ ] Revisar en la salida del 02 la auditoría de los 6 recortes faltantes de Deepfakes (3 en train y 3 en val): motivo (`frames_sin_cara` / `frames_no_leidos`).
-- [ ] 03 con input `ffpp-crops-g8`: verificar que reproduce B-01/B-02 (±0.005 de AUC), copiar `resultados/runs/*.json`, `comparacion_bce_vs_focal.csv` y `entorno.json` a `results/metrics/`.
-- [ ] Revisar las grillas Grad-CAM en `privado/` (solo en Kaggle) para explicar el AUC < 0.5 en FaceSwap; registrar los IDs de los videos, no las imágenes.
-- [ ] 01 en GPU: latencia y memoria en T4; sección 5 (ERF sobre caras) con `ffpp-crops-g8`.
+- [x] En cada notebook de Kaggle, importar la versión nueva desde GitHub antes de la próxima *Save Version*. → Las versiones sincronizadas (01 v2 a 08 v2) parten de la estructura nueva.
+- [x] 02 → **Save & Run All (Commit)** → Dataset privado `ffpp-crops-g8`. → 02 v2 (07/11): `crops.tar` de 2.39 GB, `manifest.csv` y `crops_meta.json`.
+- [x] Revisar la auditoría de los 6 recortes faltantes de Deepfakes. → Son frames sin cara (`frames_sin_cara`), ninguno ilegible: 365_307 (2) y 889_045 (1) en train, 416_342 (3) en val.
+- [x] 03 con input `ffpp-crops-g8` y copiar los resultados a `results/metrics/`. → B-03/B-04. **No** reprodujo B-01/B-02 dentro de ±0.005: NT pasó de 0.826 a 0.753 por el cambio de entorno (torch 2.11, CUDA 13) y de pipeline. Por eso las conclusiones salen de 3 semillas con IC (F-01).
+- [x] Revisar las grillas Grad-CAM en `privado/` (solo en Kaggle) para explicar el AUC < 0.5 en FaceSwap, registrando IDs y no imágenes. → C-01 (notebook 06) y C-02 (notebook 08); los IDs están en `gradcam_*seleccion_ids.csv`.
+- [x] 01 en GPU: latencia y memoria en T4; sección 5 (ERF sobre caras) con `ffpp-crops-g8`. → 01 v2 (A-02): 7.3 ms/imagen; pico de 4.15 GB; `results/teardown/latencia_gpu.csv`, `memoria_gpu.csv` y `erf_sobre_caras.csv`.
 
 ### Documentación y entregables
-- [ ] Recuperar o rehacer `E2_Informe_Evidencias_Grupo8.docx` y los cambios del 28/10 a E2/E3 (se perdieron de la copia local el 07/11 a las 12:50) y completarlo con B-01/B-02.
-- [ ] Actualizar [E2_Tareas_programacion.md](E2_Tareas_programacion.md) y `CONTEXTO_PROYECTO.md` (secciones 0, 7 y 8: ya hay resultados de entrenamiento).
-- [ ] Informe WAIMLAp (4–8 págs.): resultados de la tabla cross-manipulation, discusión del resultado nulo (hipótesis alternativa), FaceSwap < 0.5 y limitaciones (una semilla, subconjunto de 100 pares).
-- [ ] Extended abstract y póster: llenar la Tabla 1 y reemplazar el recuadro de Grad-CAM por una descripción o figura sin caras de FF++.
-- [ ] Opcional si sobra GPU: γ=1/5 o una segunda semilla (registrar antes la hipótesis en `DECISIONS.md`).
+- [x] Recuperar o rehacer `E2_Informe_Evidencias_Grupo8.docx` y completarlo con B-01/B-02. → Entregado.
+- [x] Actualizar [E2_Tareas_programacion.md](E2_Tareas_programacion.md) y `CONTEXTO_PROYECTO.md` (secciones 0, 7 y 8).
+- [x] Informe WAIMLAp (4–8 págs.): tabla cross-manipulation, discusión del resultado nulo, FaceSwap < 0.5 y limitaciones. → Informe E3 entregado el 11/11.
+- [x] Extended abstract y póster: llenar la Tabla 1 y reemplazar el recuadro de Grad-CAM por una descripción o figura sin caras de FF++. → Póster presentado en el workshop, con resultados finales y sin caras.
+- [x] Opcional si sobra GPU: γ=1/5 o una segunda semilla. → Se hizo el barrido completo γ ∈ {0, 1, 2, 5} × semillas 42–44 (H-B2 registrada antes; B-05 a B-14, F-01).
 
 ## Estado al 27/10 (histórico)
 
@@ -58,10 +56,12 @@
 
 Estas extensiones amplían el alcance; no deben bloquear la comparación mínima BCE vs. Focal γ=2 ni la tabla principal cross-manipulation.
 
-1. **Barrido de γ ∈ {0, 1, 2, 5} y semillas adicionales** — primera extensión recomendada, porque explora directamente la intervención central. Añadir γ=1/5 y más semillas solo si las corridas principales terminan y pueden compararse bajo el mismo protocolo.
-2. **Estrés por compresión c40** — reutilizar el modelo y pipeline, separar el resultado del objetivo principal c23.
-3. **Evaluación cross-dataset (DFDC Preview; respaldo: Celeb-DF v2)** — requiere preparar datos, homologar etiquetas/protocolo y revisar acceso/licencia; intentar solo con tiempo suficiente.
-4. **Rama de alta frecuencia (SRM)** — extensión exploratoria de arquitectura, con hipótesis y comparación propia. Es la de menor prioridad por el costo de implementación y entrenamiento.
+1. ✅ **Barrido de γ ∈ {0, 1, 2, 5} y semillas adicionales** (hecho: B-05 a B-14, F-01) — primera extensión recomendada, porque explora directamente la intervención central. Añadir γ=1/5 y más semillas solo si las corridas principales terminan y pueden compararse bajo el mismo protocolo.
+2. ⛔ **Estrés por compresión c40** (fuera de alcance; la Fase D usa JPEG 50 simulado) — reutilizar el modelo y pipeline, separar el resultado del objetivo principal c23.
+3. ⛔ **Evaluación cross-dataset (DFDC Preview; respaldo: Celeb-DF v2)** (fuera de alcance) — requiere preparar datos, homologar etiquetas/protocolo y revisar acceso/licencia; intentar solo con tiempo suficiente.
+4. ⛔ **Rama de alta frecuencia (SRM)** (fuera de alcance) — extensión exploratoria de arquitectura, con hipótesis y comparación propia. Es la de menor prioridad por el costo de implementación y entrenamiento.
+
+5. ✅ **Falsos sintéticos (Self-Blended Images), Fase D** — agregada después del E3 (D-14, H-D1 registrada antes; notebooks 07 y 08). FaceSwap sube de 0.26 a 0.76 de AUC por video; la predicción 4 (Grad-CAM) no se cumplió.
 
 Al iniciar una extensión, registrar antes su hipótesis, alcance y criterio de éxito en `DECISIONS.md`; si no se completa, marcarla como pendiente sin presentarla como resultado.
 
@@ -84,47 +84,46 @@ Una sesión/notebook de Kaggle que pueda ejecutarse con los datos autorizados y 
 
 ### A · Teardown y demo de la arquitectura
 
-- [ ] Ejecutar `01_teardown_xception.ipynb` de arriba abajo en el entorno Kaggle objetivo; registrar GPU, versiones y commit.
+- [x] Ejecutar `01_teardown_xception.ipynb` de arriba abajo en el entorno Kaggle objetivo; registrar GPU, versiones y commit. → 01 v2 en T4 (07/11), con torch 2.11+cu130.
 - [x] Versionar tablas/figuras de teardown CPU disponibles en `results/teardown/`.
-- [ ] Ejecutar las mediciones que dependen de GPU y datos: latencia/memoria en GPU, activaciones/ERF sobre caras y Grad-CAM; limpiar salidas de caras antes de exportar el notebook.
-- [ ] Actualizar las lecturas de tablas/figuras y distinguir resultados de Xception preentrenada de resultados del detector ajustado con FF++.
+- [x] Ejecutar las mediciones que dependen de GPU y datos: latencia/memoria en GPU, activaciones/ERF sobre caras y Grad-CAM; limpiar salidas de caras antes de exportar el notebook. → A-02; figuras con caras solo en `privado/`.
+- [x] Actualizar las lecturas de tablas/figuras y distinguir resultados de Xception preentrenada de resultados del detector ajustado con FF++. → Fase A en DECISIONS y CONTEXTO (pesos ImageNet) frente a C-01/C-02 (detector entrenado).
 
 ### B · Intervención BCE vs. Focal Loss
 
-- [ ] Ejecutar `02_preprocesamiento_ffpp.ipynb` usando acceso autorizado al Dataset privado; verificar conteos, particiones por video y recortes de 16 frames.
-- [ ] Revisar grillas de recortes y tasa de frames sin cara; registrar cualquier descarte o desviación del protocolo.
-- [ ] Ejecutar `03_entrenamiento_bce_vs_focal.ipynb` para BCE/γ=0 y Focal/γ=2 con los mismos datos, split, semilla y demás hiperparámetros.
-- [ ] Guardar para cada corrida configuración, semilla, commit, versiones del entorno, historial de pérdida/AUC y checkpoint como artefacto local de Kaggle; conservar en el repositorio solo salidas permitidas y livianas.
-- [ ] Ejecutar y registrar las pruebas de pérdidas en un runtime con PyTorch.
-- [ ] Comparar AUC in-domain por frame y por video; reportar accuracy/confusión como secundarias y no inferir mejora por fluctuaciones pequeñas.
-- [ ] Añadir γ=1 y γ=5 según presupuesto; comparar el porcentaje de ejemplos fáciles por época y, si alcanza, repetir con semillas adicionales.
+- [x] Ejecutar `02_preprocesamiento_ffpp.ipynb` usando acceso autorizado al Dataset privado; verificar conteos, particiones por video y recortes de 16 frames.
+- [x] Revisar grillas de recortes y tasa de frames sin cara; registrar cualquier descarte o desviación del protocolo. → 6 frames sin cara en 3 videos de Deepfakes (ver arriba).
+- [x] Ejecutar `03_entrenamiento_bce_vs_focal.ipynb` para BCE/γ=0 y Focal/γ=2 con los mismos datos, split, semilla y demás hiperparámetros. → B-03/B-04.
+- [x] Guardar para cada corrida configuración, semilla, commit, versiones del entorno, historial de pérdida/AUC y checkpoint como artefacto local de Kaggle; conservar en el repositorio solo salidas permitidas y livianas. → `kaggle_todas_las_corridas.csv`, `kaggle_historial_por_epoca.csv` y los checkpoints solo en Kaggle.
+- [x] Ejecutar y registrar las pruebas de pérdidas en un runtime con PyTorch. → `pytest tests`: 31 pruebas en verde (torch 2.15 CPU, 25/11), incluidas las de focal loss.
+- [x] Comparar AUC in-domain por frame y por video; reportar accuracy/confusión como secundarias y no inferir mejora por fluctuaciones pequeñas. → Las diferencias se juzgan con IC 95 % por bootstrap (F-01).
+- [x] Añadir γ=1 y γ=5 según presupuesto; comparar el porcentaje de ejemplos fáciles por época y, si alcanza, repetir con semillas adicionales. → γ ∈ {0, 1, 2, 5} × 3 semillas; % de fáciles en la época 6: 98.5 / 95.6 / 91.8 / 62.1.
 
 ### C · Robustez bajo cambios de distribución
 
-- [ ] Completar evaluación en Face2Face, FaceSwap y NeuralTextures con el test oficial completo y las caras originales correspondientes.
-- [ ] Preparar una tabla única de AUC por frame/video para BCE, γ=2 y los γ opcionales; incluir caída relativa frente al in-domain y cantidad de videos evaluados.
-- [ ] Generar/revisar Grad-CAM BCE vs. Focal en selección emparejada de aciertos y errores; registrar IDs sin publicar imágenes de FF++.
-- [ ] Evaluar c40 y DFDC Preview (o Celeb-DF v2 como respaldo) solo si el acceso, formato y cómputo lo permiten; separar estos resultados del objetivo principal.
-- [ ] Interpretar si los datos apoyan o refutan la hipótesis; indicar límites del tamaño del subconjunto, semillas, compresión y dataset.
+- [x] Completar evaluación en Face2Face, FaceSwap y NeuralTextures con el test oficial completo y las caras originales correspondientes. → 70 pares de test: 280 videos por manipulación.
+- [x] Preparar una tabla única de AUC por frame/video para BCE, γ=2 y los γ opcionales; incluir caída relativa frente al in-domain y cantidad de videos evaluados. → `barrido_resumen_por_gamma.csv` y `kaggle_todas_las_corridas.csv`.
+- [x] Generar/revisar Grad-CAM BCE vs. Focal en selección emparejada de aciertos y errores; registrar IDs sin publicar imágenes de FF++. → C-01.
+- [x] Interpretar si los datos apoyan o refutan la hipótesis; indicar límites del tamaño del subconjunto, semillas, compresión y dataset. → H-B1, H-B2 y H-D1 contrastadas en DECISIONS.
 
 ### Demo, trazabilidad y limpieza
 
-- [ ] Confirmar que un integrante distinto puede seguir README/notebooks y producir una corrida corta sin rutas locales personales.
-- [ ] Verificar que las salidas incluyen semilla, configuración, hash de commit y versiones (`pip freeze` o archivo de entorno equivalente).
-- [ ] Ejecutar `Restart & Run All` para cada notebook que se presente como reproducible; documentar celdas que dependan de secretos, descarga autorizada o artefactos de sesión.
-- [ ] Ejecutar `python tools/limpiar_caras.py` y `python tools/limpiar_caras.py --check` antes de versionar notebooks ejecutados.
-- [ ] Revisar `.gitignore`: no incluir FF++, recortes, credenciales, checkpoints pesados ni salidas de Kaggle temporales.
-- [ ] Actualizar `README.md`, `docs/DECISIONS.md` y [E2](E2_Tareas_programacion.md) con estado final, comandos, decisiones y enlaces a artefactos versionados.
-- [ ] Elaborar y registrar el enlace al documento de evidencias E2; reutilizar su procedimiento y evidencia como insumo, sin duplicar el reporte dentro del informe final E3.
+- [x] Confirmar que un integrante distinto puede seguir README/notebooks y producir una corrida corta sin rutas locales personales. → Confirmado por el grupo.
+- [x] Verificar que las salidas incluyen semilla, configuración, hash de commit y versiones (`pip freeze` o archivo de entorno equivalente).
+- [x] Ejecutar `Restart & Run All` para cada notebook que se presente como reproducible; documentar celdas que dependan de secretos, descarga autorizada o artefactos de sesión. → En Kaggle, *Save & Run All*. Dependencias documentadas en la guía de ejecución.
+- [x] Ejecutar `python tools/limpiar_caras.py` y `python tools/limpiar_caras.py --check` antes de versionar notebooks ejecutados. → También corre en el workflow `licencia-ffpp` en cada push.
+- [x] Revisar `.gitignore`: no incluir FF++, recortes, credenciales, checkpoints pesados ni salidas de Kaggle temporales. → Excluye `*.pt`, `crops/`, `results/kaggle_local/`, scripts de descarga y `fig_gradcam_*`.
+- [x] Actualizar `README.md`, `docs/DECISIONS.md` y [E2](E2_Tareas_programacion.md) con estado final, comandos, decisiones y enlaces a artefactos versionados.
+- [x] Elaborar y registrar el enlace al documento de evidencias E2; reutilizar su procedimiento y evidencia como insumo, sin duplicar el reporte dentro del informe final E3.
 
 ### Informe WAIMLAp (4–8 páginas)
 
-- [ ] Alinear título, autores/afiliación y resumen con el alcance real del experimento.
-- [ ] Describir contexto, problema, pregunta, metodología (datos, splits, protocolo, modelo, pérdidas y métricas) con precisión suficiente para reproducir.
-- [ ] Presentar resultados disponibles en tablas/figuras; etiquetar como pendiente cualquier ejecución que no haya concluido.
-- [ ] Discutir resultados positivos o nulos, amenazas a validez y limitaciones; cerrar con conclusiones respaldadas por los datos.
-- [ ] Verificar referencias, formato de plantilla, legibilidad de figuras y extensión de 4–8 páginas.
-- [ ] Hacer una revisión cruzada: cada integrante explica una parte del método y verifica que el texto no exceda la evidencia.
+- [x] Alinear título, autores/afiliación y resumen con el alcance real del experimento.
+- [x] Describir contexto, problema, pregunta, metodología (datos, splits, protocolo, modelo, pérdidas y métricas) con precisión suficiente para reproducir.
+- [x] Presentar resultados disponibles en tablas/figuras; etiquetar como pendiente cualquier ejecución que no haya concluido.
+- [x] Discutir resultados positivos o nulos, amenazas a validez y limitaciones; cerrar con conclusiones respaldadas por los datos.
+- [x] Verificar referencias, formato de plantilla, legibilidad de figuras y extensión de 4–8 páginas.
+- [x] Hacer una revisión cruzada: cada integrante explica una parte del método y verifica que el texto no exceda la evidencia.
 
 ## 4. Decisión de organización: notebook y código Python
 
@@ -138,13 +137,16 @@ El proyecto ya implementa Xception, `Dataset`/`DataLoader`, BCE/Focal Loss, entr
 
 ## 6. Criterio de cierre E3
 
-- [ ] Demo reproducible documentada, ejecutable con acceso autorizado a datos y sin afirmaciones basadas en resultados sintéticos como si fueran FF++.
-- [ ] Comparación principal BCE vs. γ=2 y evaluación cross-manipulation presentadas o, si no fue posible correrlas, limitación y evidencia disponible declaradas explícitamente.
-- [ ] Informe de 4–8 páginas revisado, consistente con `docs/DECISIONS.md` y las salidas guardadas.
-- [ ] Repositorio limpio de datos protegidos, credenciales y artefactos temporales; cambios revisados y guardados en Git.
+- [x] Demo reproducible documentada, ejecutable con acceso autorizado a datos y sin afirmaciones basadas en resultados sintéticos como si fueran FF++. → Notebooks de Kaggle y demo local (`demo/`).
+- [x] Comparación principal BCE vs. γ=2 y evaluación cross-manipulation presentadas o, si no fue posible correrlas, limitación y evidencia disponible declaradas explícitamente.
+- [x] Informe de 4–8 páginas revisado, consistente con `docs/DECISIONS.md` y las salidas guardadas.
+- [x] Repositorio limpio de datos protegidos, credenciales y artefactos temporales; cambios revisados y guardados en Git.
 
 ## 7. Registro de avance
 
 | Fecha | Cambio/ejecución | Evidencia o limitación |
 |---|---|---|
 | 2026-10-27 | Creación del plan E3 a partir de las fases A–C y el estado documentado de E2. | La implementación de notebooks está presente; las corridas reales FF++ siguen pendientes según `docs/DECISIONS.md`. |
+| 2026-11-11 | Entrega E3. | Informe y demo entregados. |
+| 2026-11-22/24 | Fase D: notebooks 07 y 08 (SBI, R0–R3 × 3 semillas; Grad-CAM). | D-14, C-02 y `results/metrics/fase_d/`. |
+| 2026-11-25 | Cierre de tareas y revisión de la documentación. | Todas las casillas cerradas. |
