@@ -1,13 +1,13 @@
 # Contexto del proyecto · Grupo 8 · Deep Learning PUCP 2026-2
 
 > Documento de contexto para un asistente (Claude) que ayude a redactar o corregir entregables del proyecto: informe, extended abstract, póster o presentaciones.
-> Fuente de verdad: el repositorio del grupo (`docs/DECISIONS.md`, `docs/E3_Tareas_programacion.md`, `results/teardown/`, `results/metrics/`). Estado al **24/11/2026**.
+> Fuente de verdad: el repositorio del grupo (`docs/DECISIONS.md`, `docs/E3_Tareas_programacion.md`, `results/teardown/`, `results/metrics/`). Estado al **25/11/2026**.
 
 ---
 
 ## 0. Reglas para el asistente
 
-1. **No inventes resultados.** Las únicas cifras reales son las de la Fase A (sección 6), la primera corrida (sección 6b) y las del pipeline nuevo (sección 6c: γ ∈ {0, 1, 2, 5} × 3 semillas con IC 95 % por bootstrap, y Grad-CAM por regiones con la semilla 42) y las de la Fase D (sección 6d: R0–R3 × 3 semillas). El Grad-CAM de la Fase D está en la sección 6d (notebook 08). Todavía **no hay** mediciones de latencia en GPU, c40 ni DFDC. Si un documento pide esos resultados, deja el espacio marcado como pendiente.
+1. **No inventes resultados.** Las únicas cifras reales son las de la Fase A (sección 6), la primera corrida (sección 6b) y las del pipeline nuevo (sección 6c: γ ∈ {0, 1, 2, 5} × 3 semillas con IC 95 % por bootstrap, y Grad-CAM por regiones con la semilla 42) y las de la Fase D (sección 6d: R0–R3 × 3 semillas). El Grad-CAM de la Fase D está en la sección 6d (notebook 08). La latencia GPU (T4) está en la sección 6. Todavía **no hay** resultados en c40 ni DFDC. Si un documento pide esos resultados, deja el espacio marcado como pendiente.
 2. **Usa los valores de este documento, no los de la propuesta E1 original.** La E1 (7/10) decía «20–30 frames», «MTCNN o RetinaFace», «224×224 o 299×299», «T4/P100» y «200–300 videos por clase». **Todo eso quedó superado.** Los valores vigentes están en la sección 4.
 3. Los entregables al workshop (abstract y póster) se escriben **en inglés**. Los del curso (E1, E2, cuaderno de decisiones) se escriben **en español**.
 4. Escribe γ (gamma), no «y». Escribe «γ ∈ {0, 1, 2, 5}», nunca «γ ≤ {…}».
@@ -116,9 +116,9 @@ El acceso académico a FF++ (TU München) está aprobado y se verificó la desca
 
 ---
 
-## 6. Resultados disponibles: Fase A (teardown, pesos ImageNet, sin datos)
+## 6. Resultados disponibles: Fase A (teardown, pesos ImageNet)
 
-Archivos: `results/teardown/*.csv`.
+Archivos: `results/teardown/*.csv` (las mediciones GPU y el ERF sobre caras se transcribieron del notebook 01 v2).
 
 | Medición | Resultado |
 |---|---|
@@ -130,6 +130,8 @@ Archivos: `results/teardown/*.csv`.
 | ERF, lado al 50 % de la masa | 25 px (`block3`), **43–91 px en el middle flow**, 137 px (`block12`), ~157 px (salida) |
 | Memoria | pesos 79.4 MB (fp32); activaciones ~282 MB por imagen (cota, fp32); ~9 GB con batch 32 → justifica AMP |
 | Latencia CPU (2 hilos) | **131 ms/imagen** (batch 1, mediana); 169 ms/imagen con batch 8 |
+| Latencia y memoria GPU (T4) | **7.3 ms/imagen** (batch 1) y 8.2 ms/imagen (batch 32); pico de 4.15 GB entrenando con AMP y batch 32 |
+| ERF sobre caras (50 %) | 27 px (`block3`), 63–97 px (middle flow), 175 px (`conv4`); 8 recortes de FF++, pesos ImageNet |
 
 **Lectura.** Dos rasgos estructurales apoyan la idea de que Xception aprende huellas locales del generador:
 - La convolución depthwise filtra cada canal por separado.
@@ -203,29 +205,29 @@ Pregunta: si la pérdida no generaliza, ¿lo hacen los datos? Se agregan falsos 
 
 ---
 
-## 7. Estado y pendientes (24/11/2026)
+## 7. Estado y pendientes (25/11/2026)
 
 **Hecho:**
 - Acceso a FF++ y muestra verificada en Kaggle.
 - Splits oficiales descargados y versionados, con test de fuga aprobado.
-- Fase A completa en todo lo que no necesita datos (sección 6).
+- Fase A completa (sección 6), incluidas la latencia GPU y el ERF sobre caras (notebook 01 v2, 07/11).
 - Pipeline de datos, entrenamiento y evaluación (BCE y focal; AUC por frame y por video) implementado y **probado de punta a punta con datos sintéticos**.
 - Tests de focal loss: γ = 0 ≡ BCE, fácil vs. difícil, sin NaN con logits ±50, gradientes finitos.
 - **B-01 `bce_s42` y B-02 `focal_g2_s42` ejecutados** (sección 6b) y tabla cross-manipulation con una semilla.
 - 07/11: notebooks reestructurados (D-12): el 02 entrega el Dataset privado `ffpp-crops-g8` y ningún notebook muestra caras de FF++. Historial público limpiado por licencia (D-11).
-- Notebooks nuevos (implementados, sin ejecutar con FF++): **04** barrido γ ∈ {0, 1, 2, 5} × semillas {42, 43, 44}; **05** análisis final con IC 95 % por bootstrap; **06** diagnóstico Grad-CAM por regiones. `train.run` ahora guarda las predicciones por frame de test (`preds_<corrida>.csv.gz`).
+- Notebooks nuevos (implementados el 07/11, ejecutados el 07–08/11, ver abajo): **04** barrido γ ∈ {0, 1, 2, 5} × semillas {42, 43, 44}; **05** análisis final con IC 95 % por bootstrap; **06** diagnóstico Grad-CAM por regiones. `train.run` ahora guarda las predicciones por frame de test (`preds_<corrida>.csv.gz`).
 
 - 07–08/11: ejecutados en Kaggle 02 → Dataset → 03, 01, 04, 06 y 05 (sección 6c). Grad-CAM por regiones hecho; γ = 1 y γ = 5 con la semilla 42.
 
 - 08/11: 04 v3 (semillas 43–44 válidas) y 05 v3 (media ± desv. e IC 95 %): sección 6c.
 
 - 22/11: Fase D (notebook 07, R0–R3 × 3 semillas): sección 6d. 24/11: revisión de la rama y textos de la demo actualizados.
-- 24/11: notebooks 07 v2 y 08 v2 sincronizados; predicción 4 de H-D1 medida (C-02, no se cumple).
+- 24/11: notebooks 07 v2 y 08 v2 sincronizados; predicción 4 de H-D1 medida (C-02, no se cumple). La revisión visual de los SBI (D-14) está hecha.
+- Entregados: E2 (evidencias), E3 (11/11) y el póster del workshop. Del workshop no hubo comentarios que incorporar.
+- 25/11: dos versiones del informe E5 (resumen extendido WAIMLAp de 4–8 págs.): v1 hasta el póster (4 págs.) y v2 con la Fase D (6 págs.). No se versionan en GitHub.
 
-**Pendiente:**
-- Llevar los resultados (incluida la Fase D) al informe y al extended abstract.
-- Fase D: confirmar que la revisión visual que pide D-14 (`privado/sbi_ejemplos.png`, output del 07) está hecha; el grupo revisó las figuras privadas del output del 08.
-- Latencia y memoria en GPU T4; c40 y DFDC quedan como trabajo futuro.
+**Pendiente:** nada del alcance del curso.
+- Trabajo futuro, fuera de alcance: c40, DFDC o Celeb-DF, rama SRM, máscaras SBI con landmarks y segmentación facial para el análisis por regiones.
 
 **Tabla de resultados** (entrenando en Deepfakes c23; AUC por video; media ± desviación entre las semillas 42, 43 y 44; notebook 05 v3):
 
@@ -246,11 +248,12 @@ Si hay una sola semilla, se indica. Con diferencias pequeñas no se sacan conclu
 |---|---|---|
 | `E1 _Propuesta de tema_Grupo_8.md` y `E1_DeepLearning_Grupo8.pdf` | Propuesta y presentación E1 (7/10) | Histórico; contiene valores ya superados (ver regla 2) |
 | `E2_Tareas_programacion.md` | Registro de tareas E2 | Histórico |
-| `E3_Tareas_programacion.md` | Plan y pendientes hasta el E3 (11/11) | Vivo |
+| `E3_Tareas_programacion.md` | Plan y casillas cerradas del E3 | Histórico |
 | `DECISIONS.md` | Cuaderno de decisiones (D-01…D-14), hipótesis, registro de experimentos y uso de IA | Vivo, fuente de verdad |
-| `WAIMLAp2026_Extended_Abstract_Grupo8_v2.docx` (Drive del grupo) | Extended abstract (EN, 2 págs.): Introduction, Methodology, Results and Discussion, Conclusions, References [1]–[8] | Alineado al 21/10; falta incorporar B-01/B-02 y los resultados finales |
-| `WAIMLAp2026_Poster_Grupo8_v2.pptx` (Drive del grupo) | Póster A0 vertical (EN): Motivation, Objectives, Methodology (+ Fig. 1 pipeline), Results & Discussion (+ Table 1 y recuadro Grad-CAM), Conclusions, References, Acknowledgments, QR | Alineado al 21/10; faltan la Tabla 1, el recuadro Grad-CAM (sin caras de FF++: usar las métricas por región del notebook 06) y el QR |
-| Informe final E3 (Drive del grupo) | 4–8 págs., plantilla WAIMLAp | No se versiona en GitHub |
+| `WAIMLAp2026_Extended_Abstract_Grupo8_v2.docx` (Drive del grupo) | Extended abstract (EN, 2 págs.): Introduction, Methodology, Results and Discussion, Conclusions, References [1]–[8] | Enviado al workshop con los resultados finales de las Fases A–C. El informe E5 lo amplía a 4–8 págs. |
+| `WAIMLAp2026_Poster_Grupo8_v2.pptx` (Drive del grupo) | Póster A0 vertical (EN): Motivation, Objectives, Methodology (+ Fig. 1 pipeline), Results & Discussion (+ Table 1 y recuadro Grad-CAM), Conclusions, References, Acknowledgments, QR | Presentado en el workshop, con los resultados finales y sin caras de FF++ |
+| Informe final E3 (Drive del grupo) | 4–8 págs., plantilla WAIMLAp | Entregado el 11/11; no se versiona en GitHub |
+| Informe E5 (resumen extendido final) | 4–8 págs., plantilla WAIMLAp, en inglés: v1 (hasta el póster) y v2 (con la Fase D) | Preparado el 25/11; no se versiona en GitHub |
 
 **Take-home del póster:** «In-domain AUC says little about the real world — measure the drop, then explain it.»
 
@@ -260,7 +263,7 @@ Si hay una sola semilla, se indica. Con diferencias pequeñas no se sacan conclu
 - Los generadores de FF++ son anteriores a los de difusión.
 - Posible sesgo demográfico (edad, género, tono de piel).
 - Cómputo limitado a GPUs gratuitas de Kaggle, de ahí el subconjunto de entrenamiento.
-- Una sola semilla al inicio.
+- Tres semillas y Grad-CAM con una sola semilla y regiones geométricas aproximadas.
 
 ---
 

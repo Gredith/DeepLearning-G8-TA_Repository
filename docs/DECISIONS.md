@@ -10,10 +10,12 @@ Cada entrada registra **qué** se decidió, **qué alternativas** había, **por 
 > - El repositorio tiene dos rutas de ejecución que comparten splits y modelo:
 >   - **Notebooks E2** (`notebooks/kaggle/01–03` + `src/kaggle_e2/`): son los que producen los resultados de este avance (subconjunto por presupuesto, D-05).
 >   - **Pipeline CLI** (`src/data_pipeline/`, `src/train.py`, `src/evaluate*.py`, `src/teardown/`): pipeline completo con manifiestos y procedencia, para las corridas de la Fase B completa.
-> - Fase A: completa para todo lo que no depende de datos (parámetros, FLOPs, RF, separable vs. estándar, latencia y memoria en CPU). Pendiente en Kaggle: latencia y memoria en GPU, activaciones sobre caras, ERF sobre caras y Grad-CAM.
+> - Fase A: completa para todo lo que no depende de datos (parámetros, FLOPs, RF, separable vs. estándar, latencia y memoria en CPU). Pendiente en Kaggle: latencia y memoria en GPU, activaciones sobre caras, ERF sobre caras y Grad-CAM. *(Resuelto el 07/11: A-02.)*
 > - Fase B: primera corrida real BCE vs. Focal (γ=2) ejecutada en Kaggle T4 el 28/10 (B-01, B-02; `results/metrics/`). Focal no mejora la robustez cross-manipulation.
 > - 07–08/11: corrida oficial del pipeline nuevo (02 → 06; B-03 a B-06, C-01). 08/11: semillas 43/44 repetidas tras D-13 y análisis final (F-01): Focal mejora solo NeuralTextures (+0.04 con cualquier γ > 0); FaceSwap y Face2Face sin efecto.
 > - 22/11: **Fase D** (D-14, H-D1): para que el detector cumpla el propósito de generalizar, se agregan falsos sintéticos (SBI) fabricados con los reales de train, más Focal γ = 2 y aumentos de compresión. Resultado (notebooks 07 y 08): las predicciones 1–3 de H-D1 se cumplen y la 4 (Grad-CAM) **no**: con SBI el modelo no mira más el borde de la cara (C-02). Con R3, FaceSwap pasa de 0.26 a 0.76 y Face2Face de 0.69 a 0.85, sin perder Deepfakes y con robustez a JPEG.
+> - 07/11 (notebook 01 v2, T4): Fase A completa también en GPU: latencia 7.3 ms/imagen (batch 1) y 8.2 ms/imagen (batch 32), pico de 4.15 GB entrenando con AMP y batch 32, y ERF sobre caras (A-02). Desde el 25/11 están transcritos en `results/teardown/`.
+> - 25/11: entregados E2, E3 y el póster; tareas cerradas (ver [E3](E3_Tareas_programacion.md)).
 
 ## Índice de decisiones
 
@@ -120,7 +122,9 @@ Las decisiones vigentes y su justificación se detallan en D-01–D-14. Esta sec
 | RF teórico | 91 px al final del entry; 283 px en `block5`; 1083 px a la salida | Desde el middle flow supera el recorte |
 | ERF (50 % de la masa) | 25 px (`block3`), 43–91 px (middle), ~157 px (salida) | La red usa información mucho más local que su RF teórico |
 | Memoria | pesos 79 MB; activaciones ~282 MB por imagen (fp32, cota) | El batch lo limitan las activaciones, no los pesos → AMP |
-| Latencia CPU (2 hilos) | 131 ms/imagen (batch 1, mediana; `results/teardown/latencia_cpu.csv`) | GPU: pendiente en Kaggle |
+| Latencia CPU (2 hilos) | 131 ms/imagen (batch 1, mediana; `results/teardown/latencia_cpu.csv`) | En la v2 del notebook, en otra CPU de Kaggle: 169 ms; depende de la máquina |
+| Latencia y memoria GPU (T4) | 7.3 ms/imagen con batch 1 y 8.2 ms/imagen con batch 32 (mediana); pico de 4.15 GB entrenando con AMP y batch 32 (`latencia_gpu.csv`, `memoria_gpu.csv`) | ~18× más rápido que CPU; una T4 de 16 GB alcanza con margen para batch 32 |
+| ERF sobre caras (50 %) | 27 px (`block3`), 63 px (`block7`), 97 px (`block11`), 175 px (`conv4`); 8 recortes de FF++, pesos ImageNet (`erf_sobre_caras.csv`) | Algo mayor que con ruido, pero sigue local en el middle flow |
 
 **Conexión con la pregunta de investigación.** Hay dos rasgos estructurales que apoyan la idea de que Xception aprende huellas locales del generador:
 - La convolución depthwise filtra cada canal por separado.
@@ -183,6 +187,7 @@ AUC por video, media ± desv. de 3 semillas. Δ frente a R0 con IC 95 % (bootstr
 |---|---|---|---|---|
 | A-01 | 20/10 | Teardown, pesos ImageNet, CPU | Ver tabla de la Fase A | — (descriptivo) |
 | S-01 | 21/10 | Prueba de humo de `src/kaggle_e2` con recortes sintéticos (CPU, 96 px, 2 épocas) | Entrena, guarda checkpoint y evalúa AUC por frame y video en las 4 manipulaciones | — (validación de código, no es resultado) |
+| A-02 | 07/11 | Notebook 01 v2 en Kaggle T4: latencia/memoria GPU y sección 5 (activaciones, ERF sobre caras y Grad-CAM, figuras solo en `privado/`) | Ver la tabla de la Fase A: 7.3 ms/imagen (batch 1); pico de 4.15 GB; ERF al 50 % de 63–97 px en el middle flow | — (descriptivo); confirma que el ERF es local |
 | B-01 | 28/10 | `bce_s42`: γ=0, 100/30/70 pares, 16 frames, 6 épocas, T4 (mejor época 3) | AUC por video: DF 0.998 · F2F 0.686 · FS 0.246 · NT 0.826. Fáciles en la época 6: 98.7 % | — (línea base) |
 | B-02 | 28/10 | `focal_g2_s42`: γ=2, igual a B-01 (mejor época 4) | AUC por video: DF 0.999 · F2F 0.674 · FS 0.228 · NT 0.820. Fáciles en la época 6: 90.0 % | Predicciones 1 y 3 sí; **2 no**: Focal no mejora el cross-manipulation (Δ AUC por video entre −0.006 y −0.018; por frame entre −0.016 y −0.024; una semilla) |
 
@@ -226,4 +231,5 @@ B-01 y B-02: `results/metrics/b01_bce_s42.json`, `b02_focal_g2_s42.json` y `comp
 - 2026-11-22: Fase D (D-14, H-D1): `sbi.py`, `Config.train_fakes`/`robust_aug`/`stress_jpeg`, `analysis` por grupo de corridas, `tests/test_sbi.py` y notebook 07 (`tools/build_nb07.py`), en la rama `feature/sbi-robustez`.
 - 2026-11-24: revisión de la Fase D: el resumen inicial ya no da H-D1 por cumplida (falta la predicción 4), filas R0…R3 y F-02 en el registro de experimentos, `CONTEXTO_PROYECTO.md` y textos de la demo actualizados. Notebook 08 (`tools/build_nb08.py`): el diagnóstico Grad-CAM del 06 sobre los checkpoints R0–R3, para la predicción 4; el 06 no se regenera y conserva las salidas que respaldan C-01.
 - 2026-11-24: notebooks 07 v2 y 08 v2 sincronizados desde Kaggle con salidas (sin caras: `limpiar_caras --check` OK). Predicción 4 de H-D1 registrada como C-02 (no se cumple), con las tablas del output del 08 en `results/metrics/fase_d/gradcam_fase_d_*`. El grupo revisó las figuras privadas del output del 08. `BRANCH` de los notebooks 07 y 08 pasa a `main`.
+- 2026-11-25: cierre de tareas: transcritos a `results/teardown/` la latencia, la memoria GPU y el ERF sobre caras del notebook 01 v2 (A-02); E2 y E3 actualizados con las casillas cerradas.
 - 2026-10-21: se integraron los notebooks E2 (`notebooks/kaggle/01–03`, `src/kaggle_e2/`, `results/teardown/`) y este cuaderno; la normalización pasó a 0.5 (D-02).
