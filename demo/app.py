@@ -103,7 +103,8 @@ T = {
     <p>La palanca fueron los <b>datos</b>, no la pérdida. Se agregaron falsos sintéticos (<i>Self-Blended Images</i>: un frame real mezclado consigo mismo) y aumentos de compresión, sin ver otras manipulaciones.</p>
     <ul>
       <li><b>FaceSwap</b> pasa de 0.26 a <b>0.76</b> y Face2Face de 0.69 a 0.85 (3 semillas, IC 95 % sin el 0), sin perder Deepfakes.</li>
-      <li>Esta demo usa los modelos de la Fase B (BCE y Focal); el modelo de la Fase D no está incluido y su Grad-CAM aún no se ha medido.</li>
+      <li><b>Grad-CAM de la Fase D:</b> el modelo <b>no</b> pasa a mirar el borde de la mezcla (la masa del borde baja con SBI). Con el modelo final, la masa pasa al <b>interior</b> de la cara en FaceSwap y Face2Face, a la par que detecta más falsos: el mapa sigue la decisión.</li>
+      <li>Esta demo usa los modelos de la Fase B (BCE y Focal); el modelo de la Fase D no está incluido.</li>
     </ul>
   </div>
   <div class="hz-card hz-lim">
@@ -193,7 +194,8 @@ la masa interior es 0.67–0.95 y muy concentrada; cuando responde «real», la 
     <p>The lever was the <b>data</b>, not the loss. We added synthetic fakes (<i>Self-Blended Images</i>: a real frame blended with itself) and compression augmentation, without seeing other manipulations.</p>
     <ul>
       <li><b>FaceSwap</b> rises from 0.26 to <b>0.76</b> and Face2Face from 0.69 to 0.85 (3 seeds, 95% CI excludes 0), with no loss on Deepfakes.</li>
-      <li>This demo uses the Phase B models (BCE and focal); the Phase D model is not included and its Grad-CAM has not been measured yet.</li>
+      <li><b>Phase D Grad-CAM:</b> the model does <b>not</b> start looking at the blending border (border mass drops with SBI). With the final model, the mass moves to the face <b>interior</b> on FaceSwap and Face2Face as it catches more fakes: the map follows the decision.</li>
+      <li>This demo uses the Phase B models (BCE and focal); the Phase D model is not included.</li>
     </ul>
   </div>
   <div class="hz-card hz-lim">
