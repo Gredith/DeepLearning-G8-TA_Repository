@@ -4,7 +4,7 @@ Interfaz local (Gradio) para mostrar qué mira el detector. Se sube una imagen y
 
 1. detecta la cara más grande con MTCNN y la recorta como en el entrenamiento (caja cuadrada 1.3×, 299×299);
 2. pasa el recorte por los cuatro modelos de la semilla 42: **Fase B** (solo Deepfakes; BCE y Focal γ = 2) y **Fase D** (Deepfakes + SBI; R1 = SBI + BCE y R3 = SBI + Focal + JPEG, el modelo final);
-3. muestra dos a la vez según la comparación elegida (*Fase B*, *Fase D* o *B vs. D*: BCE frente a R3). Cambiar de comparación no vuelve a correr los modelos.
+3. muestra dos a la vez según la comparación elegida (*Fase B*, *Fase D* o *Antes y después*: BCE frente a R3). Cambiar de comparación no vuelve a correr los modelos.
 
 Español e inglés con el selector 🌐 (los enlaces de Gradio de la barra siguen el idioma del navegador). Cada tarjeta muestra:
 
@@ -58,7 +58,7 @@ Botones *Analizar* y *Limpiar* bajo la imagen. En *Opciones*: «La imagen ya es 
 
 1. **Foto de un integrante** (con su consentimiento), en *Fase B*. Lo esperado: «sin evidencia» y masa fuera de la cara. Probarla antes: una foto de cámara está fuera de la distribución de FF++ y puede dar falsa alarma, sobre todo con R3.
 2. **Deepfake:** los dos modelos lo detectan, con la masa en el interior de la cara.
-3. **FaceSwap, en *B vs. D*:** BCE no encuentra evidencia; R3 tiene más probabilidad de detectarlo (25 % en el test, frente al 1 %), y cuando lo hace la masa pasa al interior.
+3. **FaceSwap, en *Antes y después*:** BCE no encuentra evidencia; R3 tiene más probabilidad de detectarlo (25 % en el test, frente al 1 %), y cuando lo hace la masa pasa al interior.
 4. **Cierre:** Focal cambia poco (Fase B); lo que generalizó fue cambiar los datos (Fase D: FaceSwap 0.26 → 0.76 de AUC), con el costo de más falsas alarmas.
 
 ## Licencia y privacidad

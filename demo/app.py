@@ -68,11 +68,14 @@ T = {
                   "**1.** Sube una foto con una cara · **2.** Pulsa *Analizar* · "
                   "**3.** Cambia la comparación para ver los otros modelos (no hace falta volver a analizar)."),
         "comp_label": "Comparar",
-        "comp": {"B": "Fase B · BCE vs. Focal", "D": "Fase D · R1 vs. R3", "BD": "B vs. D · BCE vs. R3"},
+        "comp": {"B": "Fase B · BCE vs. Focal", "D": "Fase D · R1 vs. R3", "BD": "Antes y después · BCE vs. R3"},
         "comp_desc": {
-            "B": "**Fase B:** entrenados solo con Deepfakes. Difieren en la pérdida: BCE o Focal (γ = 2).",
-            "D": "**Fase D:** Deepfakes + falsos sintéticos (SBI). R1 agrega solo SBI; R3 además Focal y compresión JPEG (modelo final).",
-            "BD": "**Antes y después:** BCE de la Fase B frente a R3, el modelo final de la Fase D.",
+            "B": ("**Fase B** · los dos se entrenan solo con Deepfakes; cambia la función de pérdida.  \n"
+                  "**BCE:** pérdida estándar · **Focal (γ = 2):** da más peso a los ejemplos difíciles."),
+            "D": ("**Fase D** · Deepfakes + falsos sintéticos **SBI** (un frame real mezclado con una copia alterada de sí mismo).  \n"
+                  "**R1:** solo agrega SBI (efecto de los datos) · **R3:** SBI + Focal + compresión JPEG y desenfoque al entrenar (modelo final)."),
+            "BD": ("**Antes y después** · **BCE** (Fase B: solo Deepfakes) frente a **R3** "
+                   "(Fase D, modelo final: SBI + Focal + JPEG)."),
         },
         "missing": "Fase D no disponible: faltan {f} en `results/checkpoints/` (output del notebook 07).",
         "input": "Imagen con una cara",
@@ -153,11 +156,14 @@ la masa está en el interior (≥ 0.6); cuando no, se dispersa fuera.</p>
                   "**1.** Upload a photo with a face · **2.** Press *Analyze* · "
                   "**3.** Switch the comparison to see the other models (no need to analyze again)."),
         "comp_label": "Compare",
-        "comp": {"B": "Phase B · BCE vs. Focal", "D": "Phase D · R1 vs. R3", "BD": "B vs. D · BCE vs. R3"},
+        "comp": {"B": "Phase B · BCE vs. Focal", "D": "Phase D · R1 vs. R3", "BD": "Before and after · BCE vs. R3"},
         "comp_desc": {
-            "B": "**Phase B:** trained only on Deepfakes. They differ in the loss: BCE or focal (γ = 2).",
-            "D": "**Phase D:** Deepfakes + synthetic fakes (SBI). R1 adds only SBI; R3 also adds focal loss and JPEG compression (final model).",
-            "BD": "**Before and after:** Phase B BCE against R3, the final Phase D model.",
+            "B": ("**Phase B** · both are trained only on Deepfakes; the loss function changes.  \n"
+                  "**BCE:** standard loss · **Focal (γ = 2):** gives more weight to hard examples."),
+            "D": ("**Phase D** · Deepfakes + **SBI** synthetic fakes (a real frame blended with an altered copy of itself).  \n"
+                  "**R1:** adds only SBI (effect of the data) · **R3:** SBI + focal + JPEG compression and blur during training (final model)."),
+            "BD": ("**Before and after** · **BCE** (Phase B: Deepfakes only) against **R3** "
+                   "(Phase D, final model: SBI + focal + JPEG)."),
         },
         "missing": "Phase D not available: {f} missing from `results/checkpoints/` (notebook 07 output).",
         "input": "Image with a face",
