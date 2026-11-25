@@ -7,7 +7,7 @@
 
 ## 0. Reglas para el asistente
 
-1. **No inventes resultados.** Las únicas cifras reales son las de la Fase A (sección 6), la primera corrida (sección 6b) y las del pipeline nuevo (sección 6c: γ ∈ {0, 1, 2, 5} × 3 semillas con IC 95 % por bootstrap, y Grad-CAM por regiones con la semilla 42) y las de la Fase D (sección 6d: R0–R3 × 3 semillas). El Grad-CAM de la Fase D todavía **no** está medido. Todavía **no hay** mediciones de latencia en GPU, c40 ni DFDC. Si un documento pide esos resultados, deja el espacio marcado como pendiente.
+1. **No inventes resultados.** Las únicas cifras reales son las de la Fase A (sección 6), la primera corrida (sección 6b) y las del pipeline nuevo (sección 6c: γ ∈ {0, 1, 2, 5} × 3 semillas con IC 95 % por bootstrap, y Grad-CAM por regiones con la semilla 42) y las de la Fase D (sección 6d: R0–R3 × 3 semillas). El Grad-CAM de la Fase D está en la sección 6d (notebook 08). Todavía **no hay** mediciones de latencia en GPU, c40 ni DFDC. Si un documento pide esos resultados, deja el espacio marcado como pendiente.
 2. **Usa los valores de este documento, no los de la propuesta E1 original.** La E1 (7/10) decía «20–30 frames», «MTCNN o RetinaFace», «224×224 o 299×299», «T4/P100» y «200–300 videos por clase». **Todo eso quedó superado.** Los valores vigentes están en la sección 4.
 3. Los entregables al workshop (abstract y póster) se escriben **en inglés**. Los del curso (E1, E2, cuaderno de decisiones) se escriben **en español**.
 4. Escribe γ (gamma), no «y». Escribe «γ ∈ {0, 1, 2, 5}», nunca «γ ≤ {…}».
@@ -196,10 +196,10 @@ Pregunta: si la pérdida no generaliza, ¿lo hacen los datos? Se agregan falsos 
 | R3 (+ JPEG/desenfoque, final) | 0.998 ± 0.001 | 0.847 ± 0.040 | 0.755 ± 0.056 | 0.785 ± 0.049 | 0.680 | 37 % |
 
 - **Δ R3 − R0 (IC 95 %, bootstrap pareado):** FaceSwap +0.495 [0.438, 0.553]; Face2Face +0.155 [0.108, 0.203]; NeuralTextures +0.024 (IC incluye 0); Deepfakes sin pérdida. Con JPEG 50, FaceSwap +0.362 y Face2Face +0.115 (IC excluyen 0).
-- **H-D1:** predicciones 1–3 se cumplen (R1 frente a R0: FaceSwap +0.41, Face2Face +0.14, NeuralTextures +0.10, Deepfakes sin cambio). La predicción 4 (Grad-CAM con más masa en el borde) **está pendiente**.
+- **H-D1:** predicciones 1–3 se cumplen (R1 frente a R0: FaceSwap +0.41, Face2Face +0.14, NeuralTextures +0.10, Deepfakes sin cambio). La predicción 4 **no se cumple** (notebook 08, C-02): con R1 la masa de Grad-CAM en el borde de la cara **baja** en los falsos (−0.04 a −0.06, IC excluyen 0) y se va fuera de la cara. Con R3 el borde no cambia, pero la masa pasa al **interior** en FaceSwap (+0.24), Face2Face (+0.29) y NeuralTextures (+0.19). Ese cambio acompaña a la fracción de falsos detectados con umbral 0.5 (FaceSwap: 0.4 % en R0, 25 % en R3): Grad-CAM sigue la decisión, y R3 encuentra la evidencia del interior en más falsos no vistos. Tablas: `results/metrics/fase_d/gradcam_fase_d_*`.
 - R1 y R2 son frágiles a la compresión (pierden en NeuralTextures y Deepfakes con JPEG 50); R3 lo corrige a costa de NeuralTextures limpio (0.785 frente a 0.891 en R2).
 - R3 es el modelo final por diseño, no por ser el mejor en el test.
-- **Lectura para el póster:** la palanca de la generalización fueron los datos (SBI), no la pérdida. Focal sigue sumando solo en NeuralTextures. Responde la pregunta de discusión: re-ponderar ejemplos difíciles no basta; forzar al detector a ver artefactos de mezcla sí.
+- **Lectura para el póster:** la palanca de la generalización fueron los datos (SBI), no la pérdida. Focal sigue sumando solo en NeuralTextures. Responde la pregunta de discusión: re-ponderar ejemplos difíciles no basta; cambiar los datos sí. Pero el Grad-CAM no muestra que el modelo mire el borde de la mezcla: R3 encuentra la evidencia del interior de la cara en más falsos no vistos. El «cómo» exacto queda abierto.
 
 ---
 
@@ -220,11 +220,11 @@ Pregunta: si la pérdida no generaliza, ¿lo hacen los datos? Se agregan falsos 
 - 08/11: 04 v3 (semillas 43–44 válidas) y 05 v3 (media ± desv. e IC 95 %): sección 6c.
 
 - 22/11: Fase D (notebook 07, R0–R3 × 3 semillas): sección 6d. 24/11: revisión de la rama y textos de la demo actualizados.
+- 24/11: notebooks 07 v2 y 08 v2 sincronizados; predicción 4 de H-D1 medida (C-02, no se cumple).
 
 **Pendiente:**
 - Llevar los resultados (incluida la Fase D) al informe y al extended abstract.
-- Fase D: correr en Kaggle el notebook 08 (Grad-CAM de R0–R3; predicción 4 de H-D1 con R1), revisar `privado/sbi_ejemplos.png` y sincronizar el notebook 07 ejecutado (limpio) o su `entorno.json`.
-- Tras el merge a `main`: cambiar `BRANCH` de los notebooks 07 y 08 (`tools/build_nb07.py`, `tools/build_nb08.py`) a `main`.
+- Fase D: confirmar que la revisión visual que pide D-14 (`privado/sbi_ejemplos.png`, output del 07) está hecha; el grupo revisó las figuras privadas del output del 08.
 - Latencia y memoria en GPU T4; c40 y DFDC quedan como trabajo futuro.
 
 **Tabla de resultados** (entrenando en Deepfakes c23; AUC por video; media ± desviación entre las semillas 42, 43 y 44; notebook 05 v3):

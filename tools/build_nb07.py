@@ -17,7 +17,7 @@ CLONE = '''# Kaggle: clona el repo (Internet = On). En local: usa la copia del r
 import os, sys, subprocess
 from pathlib import Path
 REPO_URL = "https://github.com/Gredith/DeepLearning-G8-TA_Repository.git"
-BRANCH = os.environ.get("REPO_BRANCH", "feature/sbi-robustez")   # cambiar a "main" cuando se haga el merge
+BRANCH = os.environ.get("REPO_BRANCH", "main")
 ROOT = Path("/kaggle/working/repo") if Path("/kaggle").exists() else Path.cwd().parents[1]
 if Path("/kaggle").exists() and not ROOT.exists():
     subprocess.run(["git", "clone", "-q", "-b", BRANCH, REPO_URL, str(ROOT)], check=True)
